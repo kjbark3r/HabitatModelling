@@ -2,15 +2,13 @@
 
 R.Version()
 citation()
+.libPaths() # where r's installed
 
 ?read.csv
 
-banffEast <-read.csv("/Users/mark.hebblewhite/Dropbox/WILD 562/Spring2017/Lab1_rintro/Banffeast.csv", header=TRUE, sep=",", na.strings="NA", dec=".", strip.white=TRUE)
-banffWest <-read.csv("/Users/mark.hebblewhite/Dropbox/WILD 562/Spring2017//Lab1_rintro/Banffwest.csv", header=TRUE, sep=",", na.strings="NA", dec=".", strip.white=TRUE)
-## or 
-setwd("/Users/mark.hebblewhite/Dropbox/WILD 562/Spring2017/Lab1_rintro/new/Lab1_data")
+setwd("C:\\Users\\kjbark3r\\Documents\\GitHub\\HabitatModelling\\Lab1_IntroSpatial\\")
 banffEast <-read.csv("Banffeast.csv")
-
+banffWest <-read.csv("Banffwest.csv")
 
 str(banffEast)
 str(banffWest)
@@ -24,8 +22,10 @@ summary(banffEast)
 summary(banffWest)
 
 ## simple graphical exploration
+par(mfrow=c(2,1))
 hist(banffEast$EastElk)
 hist(banffWest$Elkwestraw)
+par(mfrow=c(1,1))
 
 # Make a time-series scatterplot
 plot(banffEast$Year, banffEast$EastElk)
@@ -37,7 +37,7 @@ plot(EastElk~Year, reg.line=FALSE, smooth=FALSE, spread=FALSE,
      data=banffEast)
 
 plot(Elkwestraw~Year, reg.line=FALSE, smooth=FALSE, spread=FALSE, 
-     boxplots=FALSE, span=0.5, xlab="Years", ylab="East Zone Population", 
+     boxplots=FALSE, span=0.5, xlab="Years", ylab="West Zone Population", 
      data=banffWest)
 
 lines(lowess(banffEast$Year,banffEast$EastElk), col="blue")
@@ -49,21 +49,26 @@ par(mfrow = c(1,2))
 plot(EastElk~Year, reg.line=FALSE, smooth=FALSE, spread=FALSE, 
      boxplots=FALSE, span=0.5, xlab="Years", ylab="East Zone Population", 
      data=banffEast)
-
 plot(Elkwestraw~Year, reg.line=FALSE, smooth=FALSE, spread=FALSE, 
      boxplots=FALSE, span=0.5, xlab="Years", ylab="East Zone Population", 
      data=banffWest)
+par(mfrow = c(1,1))
 
 ## explore different plotting options
 ## http://www.statmethods.net/graphs/scatterplot.html
 library(car)
-scatterplot(Elkwestraw~Year, data=banffWest)
+scatterplot(Elkwestraw~Year, data=banffWest) #loess smoother default
 library(ggplot2)
 citation("ggplot2")
 
-ggplot(banffWest, aes(x=Year, y=Elkwestraw)) +geom_point(shape=2, size = 8)
-ggplot(banffWest, aes(x=Year, y=Elkwestraw)) +geom_point(shape=2, size = 8) + stat_smooth(method=lm)
-ggplot(banffWest, aes(x=Year, y=Elkwestraw)) +geom_point(shape=2, size = 8) + stat_smooth(method=loess)
+ggplot(banffWest, aes(x=Year, y=Elkwestraw)) +
+        geom_point(shape=2, size = 8)
+ggplot(banffWest, aes(x=Year, y=Elkwestraw)) +
+        geom_point(shape=2, size = 8) + 
+        stat_smooth(method=lm)
+ggplot(banffWest, aes(x=Year, y=Elkwestraw)) +
+        geom_point(shape=2, size = 8) + 
+        stat_smooth(method=loess)
 
 
 # You may have noticed that the Year column was not an option in the
@@ -78,21 +83,49 @@ plot(EastElk~Year, reg.line=FALSE, smooth=FALSE, spread=FALSE,
 
 ######### Working with the combined data set
 # Merge the data sets and save the result in MergedDataset
+
+# first, add density
+#banffEast$Density <- with(banffEast, EastElk/67)
+#banffWest$Density <- with(banffWest, Elkwestraw/186)
+
+## my version ##
+library(dplyr)
+
+banffEtest <- banffEast %>%
+  rename(Elk = EastElk) %>%
+  mutate(Density = Elk/67,
+         Zone = "East",
+         Wolf = NA) %>%
+  select(c(Year, Elk, Density, Wolf, Zone))
+  
+
+banffWtest <- banffWest %>%
+  rename(Elk = Elkwestraw,
+         Wolf = MaxWolfN) %>%
+  mutate(Density = Elk/186,
+         Zone = "West") %>%
+  select(c(Year, Elk, Density, Wolf, Zone))
+
+banff <- bind_rows(banffEtest, banffWtest)
+## END MY VERSION ##
+
 banffelk <- merge(banffEast, banffWest, all.x= TRUE, all.y = TRUE)
 str(banffelk)
 head(banffelk)
 
 ## rename row columing heading to be the same/simpler
-names(banffelk)[c(4)] <- c("WestElk")
-names(banffelk)[c(5)] <- c("Wolf")
+names(banffelk)[4] <- "WestElk"
+names(banffelk)[5] <- "Wolf"
+#OR, rename both at same time
+#names(banffelk)[c(4, 5)] <- c("WestElk, Wolf")
 str(banffelk)
 # Manipulating an existing data frame
 #Calculate density for the east zone elk and store it in a variable named Density
 ## The eastern zone is 67 km^2 in Banff
-banffelk$Density <- with(banffelk, EastElk/67)
+banffelk$DensityEast <- with(banffelk, EastElk/67)
 
 ## while the western zone is 186 km^2
-banffelk$Density <- with(banffelk, WestElk/186)
+banffelk$DensityWest <- with(banffelk, WestElk/186)
 
 ## regraph
 par(mfrow = c(1,2))
@@ -105,14 +138,18 @@ plot(WestElk~Year, reg.line=FALSE, smooth=FALSE, spread=FALSE,
      data=banffelk)
 
 ## reshaping data from WIDE into LONG format
-banffelk_long <- reshape(banffelk, varying=c("EastElk", "WestElk"), v.names="Elk", timevar = "N", direction = "long")
+banffelk_long <- reshape(banffelk, 
+                         varying=c("EastElk", "WestElk"), 
+                         v.names="Elk", 
+                         timevar = "N", 
+                         direction = "long")
 banffelk_long
 str(banffelk_long)
 banffelk_long$zone <- ifelse(banffelk_long$N == 1, "EastElk", "WestElk")
 
 ## other useful packages and commands for converting from wide to long data format
 ? reshape
-? melt
+? melt #package not loaded
 
 
 # Create a scatterplot of both elk populations on the same axes,
@@ -149,17 +186,31 @@ boxplot(Density~zone, ylab="Density", xlab="zone", data=banffelk_long)
 boxplot(Elk~zone, ylab="Population Count", xlab="zone", data=banffelk_long)
 # what do we concldue about differences in counts versus density between zones?
 
+## with the actual different densities
+par(mfrow = c(1,2))
+boxplot(Density~Zone, ylab="Density", xlab="zone", data=banff)
+boxplot(Elk~Zone, ylab="Population Count", xlab="zone", data=banff)
+
 # Conduct a 2-sample t-test of densities between the two zones
-t.test(Elk~zone, alternative='greater', conf.level=.95, 
+t.test(Elk~zone, alternative='greater', conf.level=.95, #count
        var.equal=FALSE, data=banffelk_long)
 
 t.test(Density~zone, alternative='greater', conf.level=.95, 
   var.equal=FALSE, data=banffelk_long)
 
+## with the actual different densities
+t.test(Density~Zone, alternative='greater', conf.level=.95, 
+  var.equal=FALSE, data=banff)
+
 # Fit a linear model with an interaction term to density
 densityModel <- glm(Density ~ Year * zone, family=gaussian(identity), 
   data=banffelk_long)
 summary(densityModel)
+
+## trying with my version
+densityModeltest <- glm(Density ~ Year * Zone, family=gaussian(identity), 
+  data=banff)
+summary(densityModeltest)
 
 ###############################################################################
 
@@ -167,7 +218,7 @@ summary(densityModel)
 
 
 # Import the data csv 
-cougar <- read.table("/Users/mark.hebblewhite/Dropbox/WILD 562/Spring2017/Lab1_rintro/golfcourse_cougar.csv", header=TRUE, sep=",", na.strings="NA", dec=".", strip.white=TRUE)
+cougar <- read.table("golfcourse_cougar.csv", header=TRUE, sep=",", na.strings="NA", dec=".", strip.white=TRUE)
 head(cougar)
 str(cougar)
 
@@ -182,9 +233,13 @@ summary(cougar)
 library(plyr)
 ?ddply
 ddply(cougar, "UseNonUse", summarise, mean = mean(Slope))
+  #lions dont dig steep slopes
 ddply(cougar, "UseNonUse", summarise, mean = mean(AllTrails))
+  #tend to be closer to trails
 ddply(cougar, "UseNonUse", summarise, mean = mean(CoverDist))
+  #dig cover
 ddply(cougar, "UseNonUse", summarise, mean = mean(Roads))
+  #not much diff
 
 
 # Visualize this differences with overlaid histograms for each variable
@@ -320,14 +375,11 @@ ipak(packages)
 ################################################################################################
 # WORKING WITH SHAPEFILES IN R
 
-#first set working directory
-setwd("/Users/mark.hebblewhite/Dropbox/WILD 562/Spring2017/Lab1_rintro/new/Lab1_data")
-
 # reading in shapefiles (raster package)
-elc_habitat<-shapefile("elc_habitat.shp")
-humanaccess<-shapefile("humanacess.shp")
-mcp2<-shapefile("mcp2.shp")
-wolfyht<-shapefile("wolfyht.shp")
+elc_habitat<-shapefile("..//SpatialData//elc_habitat.shp")
+humanaccess<-shapefile("..//SpatialData//humanacess.shp")
+mcp2<-shapefile("..//SpatialData//mcp2.shp")
+wolfyht<-shapefile("..//SpatialData//wolfyht.shp")
 
 # make a very basic plot of shapefile after resetting graphical parameters
 par(mfrow= c(1,1))
@@ -344,7 +396,7 @@ str(elc_habitat)
 head(elc_habitat@data, n=20)
 
 # look at the projection of the shapefile (note the use of "@" instead of "$")
-elc_habitat@proj4string@projargs
+elc_habitat@proj4string@projargs ## KJB - PROJECTION + ARGUMENTS!! ##
 
 # look at the spatial extent of the shapefile
 extent(elc_habitat)
@@ -375,17 +427,18 @@ writeOGR(elc_habitat,".","elc_habitat_NEW",driver="ESRI Shapefile")
 par(mfrow= c(1,1)) ## reset graphical parameters
 
 # reading in raster files (raster package)
-deer_w<-raster("deer_w2.tif")
-moose_w<-raster("moose_w2.tif") ## missing moose
-elk_w<-raster("elk_w2.tif")
-sheep_w<-raster("sheep_w2.tif") ## missing sheep
-goat_w<-raster("goat_w2.tif")
-wolf_w<-raster("wolf_w2.tif")#
-elevation2<-raster("Elevation2.tif") #resampled
-disthumanaccess2<-raster("DistFromHumanAccess2.tif") #resampled
+deer_w<-raster("..//SpatialData//deer_w2.tif")
+moose_w<-raster("..//SpatialData//moose_w2.tif") ## missing moose
+elk_w<-raster("..//SpatialData//elk_w2.tif")
+sheep_w<-raster("..//SpatialData//sheep_w2.tif") ## missing sheep
+goat_w<-raster("..//SpatialData//goat_w2.tif")
+wolf_w<-raster("..//SpatialData//wolf_w2.tif")#
+elevation2<-raster("..//SpatialData//Elevation2.tif") #resampled
+disthumanaccess2<-raster("..//SpatialData//DistFromHumanAccess2.tif") #resampled
 
 # make a very basic plot of raster
 plot(deer_w)
+plot(goat_w)
 
 # look at the class of the raster
 class(deer_w)
