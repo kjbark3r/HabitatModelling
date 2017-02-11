@@ -601,3 +601,199 @@ multhist(list(wolfused$goat_w2[wolfused$pack=="Bow Valley"],wolfused$goat_w2[wol
 bwplot(elk_w2 + deer_w2+moose_w2+ sheep_w2+goat_w2~pack, auto.key=TRUE,allow.multiple = TRUE,data=wolfused, outer=TRUE)
 bwplot(DistFromHumanAccess2 + Elevation2~pack, auto.key=TRUE,allow.multiple = TRUE,data=wolfused, outer=TRUE)
 
+
+
+#######################################################################################################################################
+#######################################################################################################################################
+
+## MY WORK ####
+
+library(outliers)
+library(dplyr)
+library(tidyr)
+library(gridExtra)
+
+# make df of avail 
+## to compare with wolfused
+rdavail <- as.data.frame(cov.availRD) %>%
+  mutate(pack = "Red Deer", used = 0)
+bvavail <- as.data.frame(cov.availBV) %>%
+  mutate(pack = "Bow Valley", used = 0)
+wolfavail <- rbind(rdavail, bvavail)
+usedavail <- rbind(wolfavail, wolfused)
+
+# used plots
+u.deer <- ggplot(data = wolfused, 
+       aes(x = pack, y = deer_w2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Deer Use")
+u.moose <- ggplot(data = wolfused, 
+       aes(x = pack, y = moose_w2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Moose Use")
+u.elk <- ggplot(data = wolfused, 
+       aes(x = pack, y = elk_w2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Elk Use")
+u.sheep <- ggplot(data = wolfused, 
+       aes(x = pack, y = sheep_w2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Sheep Use")
+u.goat <- ggplot(data = wolfused, 
+       aes(x = pack, y = goat_w2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Goat Use")
+u.elev <- ggplot(data = wolfused, 
+       aes(x = pack, y = Elevation2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Elevation Use")
+u.human <- ggplot(data = wolfused, 
+       aes(x = pack, y = DistFromHumanAccess2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Human Use")
+grid.arrange(u.deer, u.moose, u.elk, u.sheep, 
+             u.goat, u.elev, u.human,
+             ncol = 3)
+
+# available plots 
+a.deer <- ggplot(data = wolfavail, 
+       aes(x = pack, y = deer_w2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Deer")
+a.moose <- ggplot(data = wolfavail, 
+       aes(x = pack, y = moose_w2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Moose")
+a.elk <- ggplot(data = wolfavail, 
+       aes(x = pack, y = elk_w2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Elk")
+a.sheep <- ggplot(data = wolfavail, 
+       aes(x = pack, y = sheep_w2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Sheep")
+a.goat <- ggplot(data = wolfavail, 
+       aes(x = pack, y = goat_w2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Goat")
+a.elev <- ggplot(data = wolfavail, 
+       aes(x = pack, y = Elevation2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Elevation")
+a.human <- ggplot(data = wolfavail, 
+       aes(x = pack, y = DistFromHumanAccess2)) +
+       geom_boxplot(aes(fill = pack)) +
+       labs(title = "Human")
+grid.arrange(a.deer, a.moose, a.elk, a.sheep, 
+             a.goat, a.elev, a.human,
+             ncol = 3)
+
+## Stats - Use diffs ####
+(t.deer <- t.test(deer_w2 ~ pack, data = wolfused))
+(t.moose <- t.test(moose_w2 ~ pack, data = wolfused))
+(t.elk <- t.test(elk_w2 ~ pack, data = wolfused))
+(t.sheep <- t.test(sheep_w2 ~ pack, data = wolfused))
+(t.goat <- t.test(goat_w2 ~ pack, data = wolfused))
+(t.elev <- t.test(Elevation2 ~ pack, data = wolfused))
+(t.human <- t.test(DistFromHumanAccess2 ~ pack, data = wolfused))
+
+## looking at wolf use areas
+plot(elevation2)
+plot(highaccess, col="black", add=T)
+plot(homerangeRD, col=2:4, add = TRUE)
+plot(homerangeBV, col=5:7, add = TRUE)
+
+
+## DIET SELECTION ####
+
+## first glance - dan/heb's Boxplots (from the lattice package)
+bwplot(elk_w2 + deer_w2+moose_w2+ sheep_w2+goat_w2~pack, auto.key=TRUE,allow.multiple = TRUE,data=wolfused, outer=TRUE)
+bwplot(DistFromHumanAccess2 + Elevation2~pack, auto.key=TRUE,allow.multiple = TRUE,data=wolfused, outer=TRUE)
+
+## new df - longform use, just diet for now
+usedlong <- wolfused %>%
+  select(elk_w2, deer_w2, moose_w2, sheep_w2, goat_w2, pack) %>%
+  gather(key = "Species", value = "Use", -pack) %>%
+  na.omit()
+usedlongRD <- filter(usedlong, pack == "Red Deer")
+usedlongBV <- filter(usedlong, pack == "Bow Valley")
+
+## anovas 
+aovRD <- aov(Use ~ Species, data = usedlongRD)
+aovBV <- aov(Use ~ Species, data = usedlongBV)
+summary(aovRD); summary(aovBV)
+# both are significant; now do post-hoc
+
+## RED DEER PACK ##
+with(usedlongRD, t.test(Use[Species == "elk_w2"], 
+                        Use[Species == "deer_w2"],
+                        alternative = "greater"))
+# elk > deer
+with(usedlongRD, t.test(Use[Species == "deer_w2"], 
+                        Use[Species == "moose_w2"],
+                        alternative = "greater"))
+with(usedlongRD, t.test(Use[Species == "deer_w2"], 
+                        Use[Species == "moose_w2"],
+                        alternative = "less"))
+# deer actually < moose
+with(usedlongRD, t.test(Use[Species == "elk_w2"], 
+                        Use[Species == "moose_w2"],
+                        alternative = "greater"))
+with(usedlongRD, t.test(Use[Species == "elk_w2"], 
+                        Use[Species == "moose_w2"],
+                        alternative = "less"))
+# no sig diff elk/moose
+with(usedlongRD, t.test(Use[Species == "moose_w2"], 
+                        Use[Species == "sheep_w2"],
+                        alternative = "greater"))
+# moose > sheep
+with(usedlongRD, t.test(Use[Species == "sheep_w2"], 
+                        Use[Species == "goat_w2"],
+                        alternative = "greater"))
+# sheep > goat
+##CONCLUSION: doesn't hold for moose; otherwise good
+
+
+## BOW VALLEY PACK ##
+with(usedlongBV, t.test(Use[Species == "elk_w2"], 
+                        Use[Species == "deer_w2"],
+                        alternative = "greater"))
+# elk not > deer
+with(usedlongBV, t.test(Use[Species == "elk_w2"], 
+                        Use[Species == "deer_w2"],
+                        alternative = "less"))
+# deer actually > elk
+with(usedlongBV, t.test(Use[Species == "deer_w2"], 
+                        Use[Species == "moose_w2"],
+                        alternative = "greater"))
+
+# deer are > moose
+with(usedlongBV, t.test(Use[Species == "elk_w2"], 
+                        Use[Species == "moose_w2"],
+                        alternative = "greater"))
+# and elk are > moose
+with(usedlongBV, t.test(Use[Species == "moose_w2"], 
+                        Use[Species == "sheep_w2"],
+                        alternative = "greater"))
+# moose > sheep
+with(usedlongBV, t.test(Use[Species == "sheep_w2"], 
+                        Use[Species == "goat_w2"],
+                        alternative = "greater"))
+# sheep > goats
+#CONCLUSION: holds true for all except deer, which are most
+
+
+## quick ungulate plots
+ggplot(aes (y = Use, x = Species, fill = pack),
+       data = usedlong) + geom_boxplot()
+
+# order boxplots by mean
+bymeanRD <- with(usedlongRD, 
+                reorder(Species, -Use, mean))
+bymeanBV <- with(usedlongBV, 
+                reorder(Species, -Use, mean))
+par(mfrow=c(2,1))
+boxplot(Use ~ bymeanRD, data = usedlongRD,
+        main = "Red Deer")
+boxplot(Use ~ bymeanBV, data = usedlongBV,
+        main = "Bow Valley")
