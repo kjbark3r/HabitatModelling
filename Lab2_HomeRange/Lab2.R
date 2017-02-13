@@ -243,7 +243,7 @@ red.deerud <- getvolumeUD(red.deerUD)
 red.deerud
 
 ## Set up graphical parameters for the output of getvolumeUD 
-par(mar=c(0,0,2,0)) #set margin
+par(mar=c(0,0,2,0)) #set margin #NOTE THIS EFFS EVERYTHING FOREVER
 image(red.deerud[[1]]) #for first wolf only
 title("Output of getvolumeUD") 
 xyzv <- as.image.SpatialGridDataFrame(red.deerud[[1]]) 
@@ -490,7 +490,7 @@ all_rasters<-stack(deer_w, moose_w, elk_w, sheep_w, goat_w, wolf_w,elevation2, d
 
 #Extract covariate values for Red Deer wolf data  
 cov.outRD<-extract(all_rasters, rd.data)
-head(cov.outRD)
+#head(cov.outRD)
 
 #Extract covariate values for available points
 cov.availRD<-extract(all_rasters, rd.avail)
@@ -608,9 +608,9 @@ bwplot(DistFromHumanAccess2 + Elevation2~pack, auto.key=TRUE,allow.multiple = TR
 
 ## MY WORK ####
 
-library(outliers)
 library(dplyr)
 library(tidyr)
+library(ggplot2)
 library(gridExtra)
 
 # make df of avail 
@@ -623,37 +623,51 @@ wolfavail <- rbind(rdavail, bvavail)
 usedavail <- rbind(wolfavail, wolfused)
 
 # used plots
-u.deer <- ggplot(data = wolfused, 
-       aes(x = pack, y = deer_w2)) +
-       geom_boxplot(aes(fill = pack)) +
-       labs(title = "Deer Use")
-u.moose <- ggplot(data = wolfused, 
-       aes(x = pack, y = moose_w2)) +
-       geom_boxplot(aes(fill = pack)) +
-       labs(title = "Moose Use")
-u.elk <- ggplot(data = wolfused, 
-       aes(x = pack, y = elk_w2)) +
-       geom_boxplot(aes(fill = pack)) +
-       labs(title = "Elk Use")
-u.sheep <- ggplot(data = wolfused, 
-       aes(x = pack, y = sheep_w2)) +
-       geom_boxplot(aes(fill = pack)) +
-       labs(title = "Sheep Use")
-u.goat <- ggplot(data = wolfused, 
-       aes(x = pack, y = goat_w2)) +
-       geom_boxplot(aes(fill = pack)) +
-       labs(title = "Goat Use")
 u.elev <- ggplot(data = wolfused, 
        aes(x = pack, y = Elevation2)) +
-       geom_boxplot(aes(fill = pack)) +
-       labs(title = "Elevation Use")
+       geom_boxplot() +
+       labs(title = "Elevation",
+            x = "", y = "Meters") +
+              theme(legend.position="none") 
 u.human <- ggplot(data = wolfused, 
        aes(x = pack, y = DistFromHumanAccess2)) +
-       geom_boxplot(aes(fill = pack)) +
-       labs(title = "Human Use")
-grid.arrange(u.deer, u.moose, u.elk, u.sheep, 
-             u.goat, u.elev, u.human,
-             ncol = 3)
+       geom_boxplot() +
+       labs(title = "Human Access",
+            x = "", y = "Distance (m)") +
+              theme(legend.position="none")
+u.deer <- ggplot(data = wolfused, 
+       aes(x = pack, y = deer_w2)) +
+       geom_boxplot() +
+       labs(title = "Deer",
+            x = "", y = "HSI") +
+              theme(legend.position="none")
+u.moose <- ggplot(data = wolfused, 
+       aes(x = pack, y = moose_w2)) +
+       geom_boxplot() +
+       labs(title = "Moose",
+            x = "", y = "HSI") +
+              theme(legend.position="none")
+u.elk <- ggplot(data = wolfused, 
+       aes(x = pack, y = elk_w2)) +
+       geom_boxplot() +
+       labs(title = "Elk",
+            x = "", y = "HSI") +
+              theme(legend.position="none")
+u.sheep <- ggplot(data = wolfused, 
+       aes(x = pack, y = sheep_w2)) +
+       geom_boxplot() +
+       labs(title = "Sheep",
+            x = "", y = "HSI") +
+              theme(legend.position="none")
+u.goat <- ggplot(data = wolfused, 
+       aes(x = pack, y = goat_w2)) +
+       geom_boxplot() +
+       labs(title = "Goat",
+            x = "", y = "HSI") +
+              theme(legend.position="none")
+grid.arrange(u.elev, u.human,
+             u.elk, u.deer, u.moose, u.sheep, 
+             u.goat, ncol=2)
 
 # available plots 
 a.deer <- ggplot(data = wolfavail, 
@@ -684,7 +698,7 @@ a.human <- ggplot(data = wolfavail,
        aes(x = pack, y = DistFromHumanAccess2)) +
        geom_boxplot(aes(fill = pack)) +
        labs(title = "Human")
-grid.arrange(a.deer, a.moose, a.elk, a.sheep, 
+grid.arrange(a.elk, a.deer, a.moose, a.sheep, 
              a.goat, a.elev, a.human,
              ncol = 3)
 
@@ -704,7 +718,6 @@ plot(homerangeRD, col=2:4, add = TRUE)
 plot(homerangeBV, col=5:7, add = TRUE)
 
 
-## DIET SELECTION ####
 
 ## first glance - dan/heb's Boxplots (from the lattice package)
 bwplot(elk_w2 + deer_w2+moose_w2+ sheep_w2+goat_w2~pack, auto.key=TRUE,allow.multiple = TRUE,data=wolfused, outer=TRUE)
@@ -735,6 +748,9 @@ with(usedlongRD, t.test(Use[Species == "deer_w2"],
 with(usedlongRD, t.test(Use[Species == "deer_w2"], 
                         Use[Species == "moose_w2"],
                         alternative = "less"))
+with(usedlongRD, t.test(Use[Species == "deer_w2"], 
+                        Use[Species == "moose_w2"],
+                        alternative = "t"))
 # deer actually < moose
 with(usedlongRD, t.test(Use[Species == "elk_w2"], 
                         Use[Species == "moose_w2"],
@@ -742,6 +758,9 @@ with(usedlongRD, t.test(Use[Species == "elk_w2"],
 with(usedlongRD, t.test(Use[Species == "elk_w2"], 
                         Use[Species == "moose_w2"],
                         alternative = "less"))
+with(usedlongRD, t.test(Use[Species == "elk_w2"], 
+                        Use[Species == "moose_w2"],
+                        alternative = "t"))
 # no sig diff elk/moose
 with(usedlongRD, t.test(Use[Species == "moose_w2"], 
                         Use[Species == "sheep_w2"],
@@ -761,16 +780,18 @@ with(usedlongBV, t.test(Use[Species == "elk_w2"],
 # elk not > deer
 with(usedlongBV, t.test(Use[Species == "elk_w2"], 
                         Use[Species == "deer_w2"],
-                        alternative = "less"))
+                        alternative = "t"))
 # deer actually > elk
 with(usedlongBV, t.test(Use[Species == "deer_w2"], 
                         Use[Species == "moose_w2"],
                         alternative = "greater"))
+with(usedlongBV, t.test(Use[Species == "deer_w2"], 
+                        Use[Species == "moose_w2"]))
 
 # deer are > moose
 with(usedlongBV, t.test(Use[Species == "elk_w2"], 
                         Use[Species == "moose_w2"],
-                        alternative = "greater"))
+                        alternative = "t"))
 # and elk are > moose
 with(usedlongBV, t.test(Use[Species == "moose_w2"], 
                         Use[Species == "sheep_w2"],
@@ -788,12 +809,50 @@ ggplot(aes (y = Use, x = Species, fill = pack),
        data = usedlong) + geom_boxplot()
 
 # order boxplots by mean
-bymeanRD <- with(usedlongRD, 
+usedlongRDrn <- usedlongRD %>%
+  mutate(Species = ifelse(
+    Species == "moose_w2", "Moose", 
+    ifelse(Species == "elk_w2", "Elk",
+           ifelse(Species == "deer_w2", "Deer",
+                  ifelse(Species == "sheep_w2", "Sheep",
+                         "Goat")))))
+usedlongBVrn <- usedlongBV %>%
+  mutate(Species = ifelse(
+    Species == "moose_w2", "Moose", 
+    ifelse(Species == "elk_w2", "Elk",
+           ifelse(Species == "deer_w2", "Deer",
+                  ifelse(Species == "sheep_w2", "Sheep",
+                         "Goat")))))
+
+bymeanRD <- with(usedlongRDrn, 
                 reorder(Species, -Use, mean))
-bymeanBV <- with(usedlongBV, 
+bymeanBV <- with(usedlongBVrn, 
                 reorder(Species, -Use, mean))
 par(mfrow=c(2,1))
-boxplot(Use ~ bymeanRD, data = usedlongRD,
-        main = "Red Deer")
-boxplot(Use ~ bymeanBV, data = usedlongBV,
-        main = "Bow Valley")
+boxplot(Use ~ bymeanRD, data = usedlongRDrn,
+        main = "Red Deer", ylab = "Habitat Suitability Index")
+boxplot(Use ~ bymeanBV, data = usedlongBVrn,
+        main = "Bow Valley", ylab = "Habitat Suitability Index")
+
+
+
+## WOLF USE COMPARED TO HSI ####
+par(mfrow=c(2,1))
+whsi <- wolfused %>%
+  filter(!is.na(wolf_w2))
+hist(whsi$wolf_w2)
+
+ahsi <- wolfavail %>%
+  filter(!is.na(wolf_w2))
+hist(ahsi$wolf_w2)
+
+# combine data and plot both
+## KRISTIN YOU LEFT OFF HERE
+## trouble getting both on same beautiful freq hist
+wolfall <- rbind(wolfavail, wolfused)
+ggplot(data = wolfall, aes(x = wolf_w2, color = used)) +
+  geom_histogram(position="dodge")
+  
+  geom_bar(stat="identity", position=position_dodge()) +
+  scale_fill_manual(values=c("darkgreen","navy", "tan2")) +
+  labs(x = "", y = "Digestibility (kcal)")
