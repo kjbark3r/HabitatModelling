@@ -711,6 +711,65 @@ grid.arrange(a.elk, a.deer, a.moose, a.sheep,
 (t.elev <- t.test(Elevation2 ~ pack, data = wolfused))
 (t.human <- t.test(DistFromHumanAccess2 ~ pack, data = wolfused))
 
+## Summary stats for reporting ####
+stderr <- function(x) sqrt(var(x,na.rm=TRUE)/length(na.omit(x)))
+
+#human access
+mean(rdused$DistFromHumanAccess2, na.rm=T)
+stderr(rdused$DistFromHumanAccess2)
+length(!is.na(rdused$DistFromHumanAccess2))
+mean(bvused$DistFromHumanAccess2, na.rm=T)
+stderr(bvused$DistFromHumanAccess2)
+length(!is.na(bvused$DistFromHumanAccess2))
+
+#elev
+mean(rdused$Elevation2, na.rm=T)
+stderr(rdused$Elevation2)
+length(!is.na(rdused$Elevation2))
+mean(bvused$Elevation2, na.rm=T)
+stderr(bvused$Elevation2)
+length(!is.na(bvused$Elevation2))
+
+#moose
+mean(rdused$moose_w2, na.rm=T)
+stderr(rdused$moose_w2)
+length(!is.na(rdused$moose_w2))
+mean(bvused$moose_w2, na.rm=T)
+stderr(bvused$moose_w2)
+length(!is.na(bvused$moose_w2))
+
+#elk
+mean(rdused$elk_w2, na.rm=T)
+stderr(rdused$elk_w2)
+length(!is.na(rdused$elk_w2))
+mean(bvused$elk_w2, na.rm=T)
+stderr(bvused$elk_w2)
+length(!is.na(bvused$elk_w2))
+
+#deer
+mean(rdused$deer_w2, na.rm=T)
+stderr(rdused$deer_w2)
+length(!is.na(rdused$deer_w2))
+mean(bvused$deer_w2, na.rm=T)
+stderr(bvused$deer_w2)
+length(!is.na(bvused$deer_w2))
+
+#goat
+mean(rdused$goat_w2, na.rm=T)
+stderr(rdused$goat_w2)
+length(!is.na(rdused$goat_w2))
+mean(bvused$goat_w2, na.rm=T)
+stderr(bvused$goat_w2)
+length(!is.na(bvused$goat_w2))
+
+#sheep
+mean(rdused$sheep_w2, na.rm=T)
+stderr(rdused$sheep_w2)
+length(!is.na(rdused$sheep_w2))
+mean(bvused$sheep_w2, na.rm=T)
+stderr(bvused$sheep_w2)
+length(!is.na(bvused$sheep_w2))
+
 ## looking at wolf use areas
 plot(elevation2)
 plot(highaccess, col="black", add=T)
@@ -736,8 +795,27 @@ aovRD <- aov(Use ~ Species, data = usedlongRD)
 aovBV <- aov(Use ~ Species, data = usedlongBV)
 summary(aovRD); summary(aovBV)
 # both are significant; now do post-hoc
+aovall <- aov(Use ~ Species + pack, data = usedlong)
+summary(aovall)
+
 
 ## RED DEER PACK ##
+with(usedlongRD, 
+     mean(Use[Species == "elk_w2"], na.rm=T))
+with(usedlongRD, 
+     stderr(Use[Species == "elk_w2"]))
+length(!is.na(usedlongRD$Species == "elk_w2"))
+with(usedlongRD, 
+     mean(Use[Species == "moose_w2"], na.rm=T))
+with(usedlongRD, 
+     stderr(Use[Species == "moose_w2"]))
+length(!is.na(usedlongRD$Species == "moose_w2"))
+with(usedlongRD, 
+     mean(Use[Species == "deer_w2"], na.rm=T))
+with(usedlongRD, 
+     stderr(Use[Species == "deer_w2"]))
+length(!is.na(usedlongRD$Species == "deer_w2"))
+
 with(usedlongRD, t.test(Use[Species == "elk_w2"], 
                         Use[Species == "deer_w2"],
                         alternative = "greater"))
@@ -774,6 +852,17 @@ with(usedlongRD, t.test(Use[Species == "sheep_w2"],
 
 
 ## BOW VALLEY PACK ##
+with(usedlongBV, 
+     mean(Use[Species == "elk_w2"], na.rm=T))
+with(usedlongBV, 
+     stderr(Use[Species == "elk_w2"]))
+length(!is.na(usedlongBV$Species == "elk_w2"))
+with(usedlongBV, 
+     mean(Use[Species == "deer_w2"], na.rm=T))
+with(usedlongBV, 
+     stderr(Use[Species == "deer_w2"]))
+length(!is.na(usedlongBV$Species == "deer_w2"))
+
 with(usedlongBV, t.test(Use[Species == "elk_w2"], 
                         Use[Species == "deer_w2"],
                         alternative = "greater"))
@@ -837,22 +926,55 @@ boxplot(Use ~ bymeanBV, data = usedlongBVrn,
 
 
 ## WOLF USE COMPARED TO HSI ####
-par(mfrow=c(2,1))
+
 whsi <- wolfused %>%
   filter(!is.na(wolf_w2))
-hist(whsi$wolf_w2)
-
 ahsi <- wolfavail %>%
   filter(!is.na(wolf_w2))
-hist(ahsi$wolf_w2)
+
+par(mfrow=c(1,1))
+boxplot(whsi$wolf_w2, ahsi$wolf_w2)
+
+par(mfrow=c(2,1))
+hist(whsi$wolf_w2,
+     main = "Used Locations",
+     xlab = "Predicted Habitat Suitability Index (HSI)")
+hist(ahsi$wolf_w2,
+     main = "Available Locations",
+     xlab = "Predicted Habitat Suitability Index (HSI)")
+
+
 
 # combine data and plot both
 ## KRISTIN YOU LEFT OFF HERE
 ## trouble getting both on same beautiful freq hist
 wolfall <- rbind(wolfavail, wolfused)
+
+plz <- ggplot() +
+  geom_histogram(data = wolfused, 
+                 aes(x = wolf_w2,
+                     y = ..count..)) +
+  geom_histogram(data = wolfavail, 
+                 aes(x = wolf_w2),
+                 position = "dodge")
+plz
+
+a <- aov(wolf_w2 ~ used, data = wolfall)
+a; summary(a)
+#failz
 ggplot(data = wolfall, aes(x = wolf_w2, color = used)) +
   geom_histogram(position="dodge")
   
   geom_bar(stat="identity", position=position_dodge()) +
   scale_fill_manual(values=c("darkgreen","navy", "tan2")) +
   labs(x = "", y = "Digestibility (kcal)")
+  
+  
+  
+## HR ####
+hrrd <- as.data.frame(cp.rd) %>% mutate(pack= "rd")
+hrbv <- as.data.frame(cp.bow) %>% mutate(pack= "bv")
+hrs <- rbind(hrrd, hrbv)
+t.test(area ~ pack, data = hrs)
+stderr(hrrd$area)
+stderr(hrbv$area)
