@@ -1,0 +1,15 @@
+"Covariate","pack","SI"
+"Dist Human","Bow Valley",-1.28313108844101
+"Dist Human","Red Deer",-1.03539048836668
+"Goat","Bow Valley",-0.65401409034251
+"Moose","Red Deer",0.381395851075332
+"Elk","Red Deer",0.364405688996082
+"Deer","Red Deer",0.357703493350236
+"Deer","Bow Valley",0.339426115796617
+"Elk","Bow Valley",0.333268816903675
+"Elevation","Bow Valley",-0.262235697701519
+"Sheep","Bow Valley",-0.238817139132065
+"Goat","Red Deer",-0.224221718534555
+"Sheep","Red Deer",0.188796076398539
+"Elevation","Red Deer",-0.142138848430706
+"Moose","Bow Valley",0.127833371509885
