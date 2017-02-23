@@ -125,9 +125,14 @@ writeRaster(disthhu2, file = "disthhu2.tif", format = "GTiff", overwrite = TRUE)
 
 ######### 1.3. Re-extracting both spatial data frame ####
 ## lets bring in all the data from our original lab 1 data - where ever you still have these data
-setwd("C:\\Users\\kjbark3r\\Documents\\GitHub\\HabitatModelling\\Lab4_CategoricalRscSlxn\\New\\") 
-wolfyht<-shapefile("wolfyht.shp")
 
+# setwd
+#laptop#setwd("C:\\Users\\kjbark3r\\Documents\\GitHub\\HabitatModelling\\Lab4_CategoricalRscSlxn\\New\\")
+setwd("C:\\Users\\kristin.barker\\Documents\\GitHub\\HabitatModelling\\Lab4_CategoricalRscSlxn\\New\\") 
+
+# read in wolf data
+wolfyht<-shapefile("wolfyht.shp")
+# read in and stack rasters
 deer_w<-raster("../../SpatialData/deer_w2.tif")
 moose_w<-raster("../../SpatialData/moose_w2.tif")
 elk_w<-raster("../../SpatialData/elk_w2.tif") # already brought in above
@@ -138,12 +143,9 @@ elevation2<-raster("../../SpatialData/Elevation2.tif") #resampled
 disthumanaccess2<-raster("../../SpatialData/DistFromHumanAccess2.tif") #resampled
 disthhu2 <-raster("../New/disthhu2.tif") ## note created in 0.2 above and extent reset. 
 landcover2 <- raster("../New/landcover2.tif")
-
-#stack raster layers (i.e., create raster stack for sampling; must have same extent and resolution)
-#all_rasters<-stack(deer_w, moose_w, elk_w, sheep_w, goat_w, wolf_w, elevation2, disthumanaccess2, landcover16)
-# note the problem of different extents in using our landcover16 model BEFORE we reprojected it
-
 all_rasters<-stack(deer_w, moose_w, elk_w, sheep_w, goat_w, wolf_w,elevation2, disthumanaccess2, disthhu2, landcover2)
+# read in extracted values and skip remainder of this section
+wolfkde <- read.csv("wolfkde.csv", sep=",")
 
 #Extract covariate values for Red Deer wolf data  
 ## note rd.data is a spatialDataPointsFrame needed from Lab 2
@@ -247,6 +249,14 @@ wolfkde <- read.csv("wolfkde.csv", sep=",")
 ###
 ### Objective 2.0  Univariate Model-fitting commands from lab 3 - extracting covariate tables from multiple models ####
 
+
+library(dplyr)
+
+#setwd("C:\\Users\\kjbark3r\\Documents\\GitHub\\HabitatModelling\\Lab4_CategoricalRscSlxn\\Landcover\\")
+setwd("C:\\Users\\kristin.barker\\Documents\\GitHub\\HabitatModelling\\Lab4_CategoricalRscSlxn\\New\\")
+wolfkde <- read.csv("wolfkde.csv", sep=",") %>%
+  rename(DistFromHighHumanAccess2 = disthhu2)
+
 ### First for all packs
 elev <- glm(used ~ Elevation2, family=binomial(logit), data=wolfkde)
 distacc <- glm(used ~ DistFromHumanAccess2, family=binomial(logit), data=wolfkde)
@@ -302,10 +312,19 @@ modelnamesRD = c("rdelev", "rddisthha", "rddistacc", "rdsheep", "rdgoat", "rdelk
 # Now put all of your estimates in a pretty table with names that you'll remember!
 estimates.RD = matrix(modelsRD, nrow=2*length(modelnamesRD), ncol=2, dimnames = list(paste(rep(modelnamesRD, each=2),c("intercept", "coefficient")), c("B", "SE")))
 
+### combine and export model outputs
+estimates <- data.frame(rbind(estimates.all, estimates.BV, estimates.RD)) %>%
+  mutate(Value = rownames(estimates))
+write.csv(estimates, "estimates.csv", row.names=F)
 
 
 ###
-###### Objective 3.0  Categorical Resource Selection Functions #########
+###### KRISTIN START HERE, RUN EVERYTHING Objective 3.0  Categorical Resource Selection Functions #########
+
+setwd("C:\\Users\\kristin.barker\\Documents\\GitHub\\HabitatModelling\\Lab4_CategoricalRscSlxn\\New\\")
+wolfkde <- read.csv("wolfkde.csv", sep=",") %>%
+  rename(DistFromHighHumanAccess2 = disthhu2)
+
 names(wolfkde)[10]<-"landcover16"
 # lets make a new column for landcover 'name'
 wolfkde$habitatType = ifelse(wolfkde$landcover16 == 0, "NA", 
@@ -337,9 +356,13 @@ table(wolfkde3$landcover16, wolfkde3$usedFactor)
 
 names.m = data.frame(unique(wolfkde3$landcover16),unique(wolfkde3$habitatType))
 # Now I put it order
-names.m = names.m[order(names.m)[1:14],]
+names.m = names.m[order(names.m)[1:15],]
 names.m
-#~# GIVES SWEET LEGEND TABLE
+
+names.m.export <- names.m
+colnames(names.m.export) <- c("Number", "Landcover")
+row.names(names.m.export) <- NULL
+write.csv(names.m.export, "landcover-legend.csv", row.names=F)
 
 
 # Define a factor variable, landcov.f, 
@@ -351,6 +374,7 @@ wolfkde3$landcov.f = factor(wolfkde3$landcover16,labels = names.m$unique.wolfkde
 #Note that there are many alternative ways of defining your landcover/habitattype 
 # as a factor. This method seemed most explicit in terms of defining the design matrix
 table(wolfkde3$landcov.f, wolfkde3$usedFactor)
+
  
 # Univariate Selection Ratio's
 
@@ -363,6 +387,7 @@ landcovSelection2
 hist(landcovSelection2$lnSelection)
 
 write.table(landcovSelection2, "wolfselection.csv", sep=",", row.names = TRUE, col.names=TRUE)
+#~# kristin this rowname label is fucked up
 
 #~# can't estimate selection of 0s, duh
 ## reln bt ln selxn ration from use-avail vs 
@@ -379,6 +404,7 @@ write.table(landcovSelection2, "wolfselection.csv", sep=",", row.names = TRUE, c
 
 contrasts(wolfkde3$landcov.f) = contr.treatment(15) 
 ## note here also that in my case I had 15 landcover types
+#~# kristin you did not rerun your code using set.seed, 
 
 # To see the design matrix assigned
 attributes(wolfkde3$landcov.f)
@@ -404,15 +430,16 @@ summary(naive.nf)
 # Univariate regression example
 oc = glm(used~I(landcov.f=="Open Conifer"),data=wolfkde3, family = binomial(logit))
 summary(oc)
-str(summary(oc))
-## now lets manually evaluate the predicted probability of a wolf used location occuring in Open Conifer
+## now lets manually evaluate the predicted probability of 
+##a wolf used location occuring in Open Conifer
 exp(-1.61844+0.644*1)/(1+exp(-1.6184+0.644*1))
 ## now compare to the probability of wolf use in non-conifer landcovers ?
 exp(-1.61844+0.644*0)/(1+exp(-1.6184+0.644*0))
 
 
 # Multivariate regression example
-ocb = glm(used~I(landcov.f=="Open Conifer")+I(landcov.f=="Burn"), data = wolfkde3, family = binomial(logit))
+ocb = glm(used~I(landcov.f=="Open Conifer")+I(landcov.f=="Burn"), 
+          data = wolfkde3, family = binomial(logit))
 summary(ocb)
 
 #~# do wolves select for burns more than open conifer?'
@@ -423,7 +450,8 @@ summary(ocb)
 
 ### and with a few more variables
 conif = glm(used~I(landcov.f=="Open Conifer")+I(landcov.f=="Moderate Conifer")
-                  +I(landcov.f=="Closed Conifer"), data = wolfkde3, family = binomial(logit))
+                  +I(landcov.f=="Closed Conifer"), data = wolfkde3, 
+            family = binomial(logit))
 summary(conif)
 ## how do we interpret the intercept in each model? 
 ##In model ocb the intercept is everything EXCEPT burns and open conifer.  
@@ -435,17 +463,21 @@ full = glm(used~I(landcov.f), data=wolfkde3, family = binomial(logit))
 summary(full)
 ## What is the intercept?
 ## Where did alpine (landcover 15) go?
-## Why did landcover types 4 (decid), 6 (regen) and alpine- herb (12) 'blow' up? Go back and look at this table to undestand
+## Why did landcover types 4 (decid), 6 (regen) and alpine- herb (12) 'blow' up? 
+##Go back and look at this table to undestand
 table(wolfkde3$landcov.f, wolfkde3$usedFactor)
 ## They blew up because there was 0 used observed.  See what its trying to estimate?
 exp(-0.974 - 15.592*1)/(1+exp(-0.974 - 15.592*1)) ## these are the intercept and coefficient for deciduous
-## which is telling us that the probability of wolves using decid is essentially 0, but with no precision (look at the SE) because its unestimable. 
-## in this case, all landcover types without observations should technically be dropped and or reclasses into the intercept category.
+## which is telling us that the probability of wolves using decid is essentially 0, but with no precision 
+##(look at the SE) because its unestimable. 
+## in this case, all landcover types without observations should technically be dropped and or 
+##reclasses into the intercept category.
 ## so our options are to delete these rows of data like NA's above or Cloud
-##  or reclass as equivalent to the intercept. The latter is my recommendation, but lets wait to do that 'manually' below. 
+##  or reclass as equivalent to the intercept. 
+##The latter is my recommendation, but lets wait to do that 'manually' below. 
 
 
-#~# landcov11 NOW12 = alpine herb
+#~# landcov11 NOW15 = alpine herb
   ## intercept is fucked because no observations in that lc type
   ## samesies stderr
     ## so you always have to keep track of used and available
@@ -474,6 +506,7 @@ full.model = glm(used~I(landcov.f=="Moderate Conifer")+I(landcov.f=="Closed Coni
                  +I(landcov.f=="Burn")+I(landcov.f=="Alpine Herb")+I(landcov.f=="Alpine Shrub"), data = wolfkde3, family = binomial(logit))
 summary(full.model)
 ## note here that the Intercept is now manually defined as Open Conifer
+#~# equivalent to full
 
 ## note that it is the same as the model full above. 
 ## Also, note here that the Intercept is now manually defined as Open Conifer
@@ -508,7 +541,8 @@ summary(rockintercept.model)
 ## he likes creating his own set of dummy vrbls and add them to df
 
 ## In practice I find working through the Design matrix coding of R confusing. 
-## Instead, I often just create my own 'manual' dummy variables in my data frame, sometimes even beforehand in excel
+## Instead, I often just create my own 'manual' dummy variables in my data frame, 
+## sometimes even beforehand in excel
 
 ### Manually creating 'dummy' variables that replace using the interaction expansion used ~ I.
 wolfkde3$closedConif = ifelse(wolfkde3$habitatType == "Closed Conifer", 1, 0)
@@ -522,7 +556,9 @@ wolfkde3$shrub = ifelse(wolfkde3$habitatType == "Shrub", 1, 0)
 wolfkde3$water = ifelse(wolfkde3$habitatType == "Water", 1, 0)
 wolfkde3$rockIce = ifelse(wolfkde3$habitatType == "Rock-Ice", 1, 0)
 ## note here I reclassified all burn = 1 
-wolfkde3$burn = ifelse(wolfkde3$habitatType == "Burn-Grassland", 1, ifelse(wolfkde3$habitatType == "Burn-Shrub", 1, ifelse(wolfkde3$habitatType == "Burn-Forest", 1,0 )))
+wolfkde3$burn = ifelse(wolfkde3$habitatType == "Burn-Grassland", 1, 
+                       ifelse(wolfkde3$habitatType == "Burn-Shrub", 1, 
+                              ifelse(wolfkde3$habitatType == "Burn-Forest", 1,0 )))
 wolfkde3$alpineHerb = ifelse(wolfkde3$habitatType == "Alpine Herb", 1, 0)
 wolfkde3$alpineShrub = ifelse(wolfkde3$habitatType == "Alpine Shrub", 1, 0)
 
@@ -569,12 +605,14 @@ rock.alpine.regen.decid.intercept.model = glm(used~closedConif + openConif +
                                                 burn+alpine, data = wolfkde3, 
                                               family = binomial(logit))
 summary(rock.alpine.regen.decid.intercept.model)
+#~# this subsumes decid and regen in the intercept
 
 ## comparing coefficients from two different models with different intercepts
 
 #### I adopt the code from section 2.0 above to pull out all the coefficients and SE's and put them in one long table
 
-
+### CREATE TABLE OF COEFFS YOU WANT TO LOOK AT ####
+## using the code below for the models you're interested in ##
 oc.ri.coefs.long = data.frame(rbind(
   summary(oc.intercept.model)$coefficients[,1:2], 
   summary(rockintercept.alpine.model)$coefficients[,1:2]))
@@ -582,8 +620,8 @@ oc.ri.coefs.long = data.frame(rbind(
 coef.names = c("OpenConif", "closedConif", "modConif", "decid", 
                "regen", "mixed", "herb", "water", "rockIce", "burn", "alpine")
 model.names = c("Open Conif Intercept", "RockIce Intercept")
-oc.ri.coefs.long $habitatType = paste(rep(coef.names, each=1))
-oc.ri.coefs.long $model = paste(rep(model.names, each=1))
+oc.ri.coefs.long$habitatType = paste(rep(coef.names, each=1))
+oc.ri.coefs.long$model = paste(rep(model.names, each=1))
 oc.ri.coefs.long 
 
 ## now use this table to compare the ABSOLUTE differences say between burn and alpine in both models
