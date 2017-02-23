@@ -303,6 +303,7 @@ modelnamesRD = c("rdelev", "rddisthha", "rddistacc", "rdsheep", "rdgoat", "rdelk
 estimates.RD = matrix(modelsRD, nrow=2*length(modelnamesRD), ncol=2, dimnames = list(paste(rep(modelnamesRD, each=2),c("intercept", "coefficient")), c("B", "SE")))
 
 
+
 ###
 ###### Objective 3.0  Categorical Resource Selection Functions #########
 names(wolfkde)[10]<-"landcover16"
@@ -372,11 +373,12 @@ write.table(landcovSelection2, "wolfselection.csv", sep=",", row.names = TRUE, c
 
 
 ###
-### Objective 3.  Logistic Regression ####
+### Objective 4.  Logistic Regression ####
 
 ## first we have to think about analyzing categorical variables using a new approach compared to categories.
 
-contrasts(wolfkde3$landcov.f) = contr.treatment(14)
+contrasts(wolfkde3$landcov.f) = contr.treatment(15) 
+## note here also that in my case I had 15 landcover types
 
 # To see the design matrix assigned
 attributes(wolfkde3$landcov.f)
@@ -384,8 +386,10 @@ attributes(wolfkde3$landcov.f)
 
 ### note that while we have cleaned up the clouds and NA's, what shoudl we do about Burned-Grassland
 ### Herbaceous and Burn-Forests? Reclassify as Burned? We will return to this in a minute. 
-levels(wolfkde3$landcov.f)[10:12] = "Burn"
-contrasts(wolfkde3$landcov.f) = contr.treatment(12)
+## checking above, we see that 11, 12, and 13 are all burns. 
+levels(wolfkde3$landcov.f)[11:13] = "Burn"
+## note this then reduces us from 15 to 13 categories
+contrasts(wolfkde3$landcov.f) = contr.treatment(13)
 attributes(wolfkde3$landcov.f)
 
 # note how the design matrix has collapsed burn into one category? What other categories should we consider?
@@ -400,6 +404,11 @@ summary(naive.nf)
 # Univariate regression example
 oc = glm(used~I(landcov.f=="Open Conifer"),data=wolfkde3, family = binomial(logit))
 summary(oc)
+str(summary(oc))
+## now lets manually evaluate the predicted probability of a wolf used location occuring in Open Conifer
+exp(-1.61844+0.644*1)/(1+exp(-1.6184+0.644*1))
+## now compare to the probability of wolf use in non-conifer landcovers ?
+exp(-1.61844+0.644*0)/(1+exp(-1.6184+0.644*0))
 
 
 # Multivariate regression example
@@ -412,16 +421,31 @@ summary(ocb)
   ## stronger selection for burn than for open conifer
     ## with all other lc types being considered
 
-conif = glm(used~I(landcov.f=="Open Conifer")+I(landcov.f=="Rock-Ice")+I(landcov.f=="Moderate Conifer")+I(landcov.f=="Closed Conifer")+I(landcov.f=="Burn"), data = wolfkde3, family = binomial(logit))
+### and with a few more variables
+conif = glm(used~I(landcov.f=="Open Conifer")+I(landcov.f=="Moderate Conifer")
+                  +I(landcov.f=="Closed Conifer"), data = wolfkde3, family = binomial(logit))
 summary(conif)
+## how do we interpret the intercept in each model? 
+##In model ocb the intercept is everything EXCEPT burns and open conifer.  
+##Whereas  in the second, its everything except conifers.
 
 
 # Full model
-full.wrong = glm(used~I(landcov.f), data=wolfkde3, family = binomial(logit))
-summary(full.wrong)
-## why is nothing significant now?? What is the intercept?
+full = glm(used~I(landcov.f), data=wolfkde3, family = binomial(logit))
+summary(full)
+## What is the intercept?
+## Where did alpine (landcover 15) go?
+## Why did landcover types 4 (decid), 6 (regen) and alpine- herb (12) 'blow' up? Go back and look at this table to undestand
+table(wolfkde3$landcov.f, wolfkde3$usedFactor)
+## They blew up because there was 0 used observed.  See what its trying to estimate?
+exp(-0.974 - 15.592*1)/(1+exp(-0.974 - 15.592*1)) ## these are the intercept and coefficient for deciduous
+## which is telling us that the probability of wolves using decid is essentially 0, but with no precision (look at the SE) because its unestimable. 
+## in this case, all landcover types without observations should technically be dropped and or reclasses into the intercept category.
+## so our options are to delete these rows of data like NA's above or Cloud
+##  or reclass as equivalent to the intercept. The latter is my recommendation, but lets wait to do that 'manually' below. 
 
-#~# landcov11 = alpine herb
+
+#~# landcov11 NOW12 = alpine herb
   ## intercept is fucked because no observations in that lc type
   ## samesies stderr
     ## so you always have to keep track of used and available
@@ -436,63 +460,78 @@ summary(full.wrong)
 full.NoInt = glm(used~I(landcov.f) -1, data=wolfkde3, family = binomial(logit))
 summary(full.NoInt)
 
+## note that the model with no intercept in it keeps Open Conifer.  
+## Compare these coefficients to the coefficients with the same model but with an intercept.
+## how do they differ??
+
 #~# -1 removes intercept
 # now have selection coefficient for every category
 
+# now lets fit the model manually with each factor with open conifer as the intercept
 full.model = glm(used~I(landcov.f=="Moderate Conifer")+I(landcov.f=="Closed Conifer")
-                 +I(landcov.f=="Deciduous")+I(landcov.f=="Mixed")+I(landcov.f=="Herb")
-                 +I(landcov.f=="Shrub")+I(landcov.f=="Water")+I(landcov.f=="Rock-Ice")
-                 +I(landcov.f=="Burn")+I(landcov.f=="Alpine Herb")+I(landcov.f=="Alpine Shrub"), 
-                 data = wolfkde3, family = binomial(logit))
+                 +I(landcov.f=="Deciduous")+I(landcov.f=="Mixed")+I(landcov.f=="Herbaceous")
+                 +I(landcov.f=="Regen")+I(landcov.f=="Shrub")+I(landcov.f=="Water")+I(landcov.f=="Rock-Ice")
+                 +I(landcov.f=="Burn")+I(landcov.f=="Alpine Herb")+I(landcov.f=="Alpine Shrub"), data = wolfkde3, family = binomial(logit))
 summary(full.model)
-
 ## note here that the Intercept is now manually defined as Open Conifer
 
+## note that it is the same as the model full above. 
+## Also, note here that the Intercept is now manually defined as Open Conifer
+
+
 ###
-#### Objective 3.	Gain an appreciation for the influence of changing the reference category on the model. ####
+#### Objective 5.	Gain an appreciation for the influence of changing the reference category on the model. ####
 
-## To change the reference level to say Rock and ICe (9), you simply reset the contrast/design matrix, for example,
+## To change the reference level to say Rock and ICe (9), 
+##you simply reset the contrast/design matrix, for example,
+## first recheck which # Rock-Ice is
+levels(wolfkde3$landcov.f) ## Ok it is # 10
 
-contrasts(wolfkde3$landcov.f) = contr.treatment(12, base = 9)
+contrasts(wolfkde3$landcov.f) = contr.treatment(13, base = 10)
 attributes(wolfkde3$landcov.f)
 # and note that rock-ice now is 0. 
 
 rockintercept.model = glm(used~I(landcov.f=="Moderate Conifer")+I(landcov.f=="Closed Conifer")
-                 +I(landcov.f=="Deciduous")+I(landcov.f=="Mixed")+I(landcov.f=="Herb")
-                 +I(landcov.f=="Shrub")+I(landcov.f=="Water")+I(landcov.f=="Open Conifer")
+                 +I(landcov.f=="Deciduous")+I(landcov.f=="Mixed")+I(landcov.f=="Herbaceous")
+                 +I(landcov.f=="Regen")+I(landcov.f=="Shrub")+I(landcov.f=="Water")+I(landcov.f=="Open Conifer")
                  +I(landcov.f=="Burn")+I(landcov.f=="Alpine Herb")+I(landcov.f=="Alpine Shrub"), data = wolfkde3, family = binomial(logit))
 summary(rockintercept.model)
 
 ## now compare coefficients from each model with open conifer vs. Rock and Ice as the intercept models?
 ## what has changed?
+## NEWNOTE: Make a table comparing coefficients from different models 
+## with different intercepts?
 
 ## now chose other reference categories. 
 
 #~# mark finds that the r-based contrast coding is complicated
 ## he likes creating his own set of dummy vrbls and add them to df
 
-### Manually creating 'dummy' variables that replace using the interaction 
-##expansion used ~ I.
+## In practice I find working through the Design matrix coding of R confusing. 
+## Instead, I often just create my own 'manual' dummy variables in my data frame, sometimes even beforehand in excel
+
+### Manually creating 'dummy' variables that replace using the interaction expansion used ~ I.
 wolfkde3$closedConif = ifelse(wolfkde3$habitatType == "Closed Conifer", 1, 0)
 wolfkde3$modConif = ifelse(wolfkde3$habitatType == "Moderate Conifer", 1, 0)
 wolfkde3$openConif = ifelse(wolfkde3$habitatType == "Open Conifer", 1, 0)
 wolfkde3$decid = ifelse(wolfkde3$habitatType == "Deciduous", 1, 0)
+wolfkde3$regen = ifelse(wolfkde3$habitatType == "Regen", 1, 0)
 wolfkde3$mixed = ifelse(wolfkde3$habitatType == "Mixed", 1, 0)
 wolfkde3$herb = ifelse(wolfkde3$habitatType == "Herbaceous", 1, 0)
 wolfkde3$shrub = ifelse(wolfkde3$habitatType == "Shrub", 1, 0)
 wolfkde3$water = ifelse(wolfkde3$habitatType == "Water", 1, 0)
 wolfkde3$rockIce = ifelse(wolfkde3$habitatType == "Rock-Ice", 1, 0)
-wolfkde3$burn = ifelse(wolfkde3$habitatType == "Burn-Grassland", 1, 
-                       ifelse(wolfkde3$habitatType == "Burn-Shrub", 1, 
-                              ifelse(wolfkde3$habitatType == "Burn-Forest", 1,0 )))
+## note here I reclassified all burn = 1 
+wolfkde3$burn = ifelse(wolfkde3$habitatType == "Burn-Grassland", 1, ifelse(wolfkde3$habitatType == "Burn-Shrub", 1, ifelse(wolfkde3$habitatType == "Burn-Forest", 1,0 )))
 wolfkde3$alpineHerb = ifelse(wolfkde3$habitatType == "Alpine Herb", 1, 0)
 wolfkde3$alpineShrub = ifelse(wolfkde3$habitatType == "Alpine Shrub", 1, 0)
 
 head(wolfkde3)
 ### note now that the design matrix is manually set in the data.frame.  
+
 #This is inefficient, but might be easier to keep track of.
-## note you can also easily reclassify categories now, but you have to mentally keep track of 
-## the unit-sum constraint
+## note you can also easily reclassify categories now, 
+##but you have to mentally keep track of the unit-sum constraint
 
 wolfkde3$alpine = wolfkde3$alpineHerb + wolfkde3$alpineShrub
 
@@ -509,3 +548,53 @@ summary(rockintercept.alpine.model)
 ## by manually leaving them out of the analysis after you
 ## manually coded the reference levels
 ## so, same as above but just delete alpine too
+
+
+### refitting model with Open Conifer as the intercept and alpine/burn pooled
+
+oc.intercept.model = glm(used~closedConif + modConif + decid+ 
+                           regen+mixed+herb+water+rockIce+burn+alpine, 
+                         data = wolfkde3, family = binomial(logit))
+summary(oc.intercept.model)
+
+### refitting model with just Alpine and Rock and Ice as the intercept
+rockintercept.alpine.model = glm(used~closedConif + openConif + modConif + 
+                                   decid+ regen+mixed+herb+water+burn+alpine, 
+                                 data = wolfkde3, family = binomial(logit))
+summary(rockintercept.alpine.model)
+
+### refitting model manually dropping Decid and Regen - where do they no go?
+rock.alpine.regen.decid.intercept.model = glm(used~closedConif + openConif + 
+                                                modConif + mixed+herb+water+
+                                                burn+alpine, data = wolfkde3, 
+                                              family = binomial(logit))
+summary(rock.alpine.regen.decid.intercept.model)
+
+## comparing coefficients from two different models with different intercepts
+
+#### I adopt the code from section 2.0 above to pull out all the coefficients and SE's and put them in one long table
+
+
+oc.ri.coefs.long = data.frame(rbind(
+  summary(oc.intercept.model)$coefficients[,1:2], 
+  summary(rockintercept.alpine.model)$coefficients[,1:2]))
+# Name your model
+coef.names = c("OpenConif", "closedConif", "modConif", "decid", 
+               "regen", "mixed", "herb", "water", "rockIce", "burn", "alpine")
+model.names = c("Open Conif Intercept", "RockIce Intercept")
+oc.ri.coefs.long $habitatType = paste(rep(coef.names, each=1))
+oc.ri.coefs.long $model = paste(rep(model.names, each=1))
+oc.ri.coefs.long 
+
+## now use this table to compare the ABSOLUTE differences say between burn and alpine in both models
+## in the oc.model the B coefficient for Burn = 0.29 and Alpine = -3.002 an absolute differences of 3.29
+## in the rock.model the B coefficient for Burn = 2.2 and Alpine is -1.086, an absolute difference of 3.29
+## the same!
+
+## now lets make a figure of the Beta coefficients 
+
+ggplot(oc.ri.coefs.long, 
+       aes(x=habitatType, y=Estimate, colour=model)) + 
+       geom_point(size = 5)
+
+## this figure tells us that RELATIVELY nothing has changed, only where the coefficients are relative to the yAxis
