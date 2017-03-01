@@ -321,7 +321,14 @@ write.csv(estimates, "estimates.csv", row.names=F)
 ###
 ###### KRISTIN START HERE, RUN EVERYTHING Objective 3.0  Categorical Resource Selection Functions #########
 
-setwd("C:\\Users\\kristin.barker\\Documents\\GitHub\\HabitatModelling\\Lab4_CategoricalRscSlxn\\New\\")
+wd_workcomp <- "C:\\Users\\kristin.barker\\Documents\\GitHub\\HabitatModelling\\Lab4_CategoricalRscSlxn\\New\\"
+wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\GitHub\\HabitatModelling\\Lab4_CategoricalRscSlxn\\New\\"
+if (file.exists(wd_workcomp)) {setwd(wd_workcomp)
+} else {setwd(wd_laptop)}
+rm(wd_workcomp, wd_laptop)
+
+library(dplyr)
+
 wolfkde <- read.csv("wolfkde.csv", sep=",") %>%
   rename(DistFromHighHumanAccess2 = disthhu2)
 
@@ -342,13 +349,14 @@ wolfkde$habitatType = ifelse(wolfkde$landcover16 == 0, "NA",
                             ifelse(wolfkde$landcover16 == 12, "Burn-Forest",                               
                             ifelse(wolfkde$landcover16 == 13, "Burn-Grassland", 
                             ifelse(wolfkde$landcover16 == 14, "Burn-Shrub", 
-                            ifelse(wolfkde$landcover16 == 15, "Alpine Herb", "Alpine Shrub"))))))))))))))))
+                            ifelse(wolfkde$landcover16 == 15, "Alpine Herb", 
+                                   "Alpine Shrub"))))))))))))))))
 table(wolfkde$landcover16, wolfkde$used)
 hist(wolfkde$landcover16)
 
 ## note we will have to discuss what to do with NA's and Cloud. 
 ## remove clouds as missing data
-wolfkde2 <- wolfkde[wolfkde$landcover16 != 11, ]
+wolfkde2 <- wolfkde[wolfkde$landcover16 != 11, ] #rm clouds
 table(wolfkde2$landcover16, wolfkde2$usedFactor)
 wolfkde3 <-wolfkde2[wolfkde2$landcover16 != 0, ]
 table(wolfkde3$landcover16, wolfkde3$usedFactor)
@@ -356,7 +364,7 @@ table(wolfkde3$landcover16, wolfkde3$usedFactor)
 
 names.m = data.frame(unique(wolfkde3$landcover16),unique(wolfkde3$habitatType))
 # Now I put it order
-names.m = names.m[order(names.m)[1:15],]
+names.m = names.m[order(names.m)[1:14],]
 names.m
 
 names.m.export <- names.m
@@ -370,7 +378,8 @@ write.csv(names.m.export, "landcover-legend.csv", row.names=F)
 
 #~# need categories for a categorical analysis
 
-wolfkde3$landcov.f = factor(wolfkde3$landcover16,labels = names.m$unique.wolfkde3.habitatType)
+wolfkde3$landcov.f = factor(wolfkde3$landcover16,
+                            labels = names.m$unique.wolfkde3.habitatType)
 #Note that there are many alternative ways of defining your landcover/habitattype 
 # as a factor. This method seemed most explicit in terms of defining the design matrix
 table(wolfkde3$landcov.f, wolfkde3$usedFactor)
@@ -387,6 +396,22 @@ landcovSelection2
 hist(landcovSelection2$lnSelection)
 
 write.table(landcovSelection2, "wolfselection.csv", sep=",", row.names = TRUE, col.names=TRUE)
+
+## SELECTION RATIOS WITH LUMPED BURN ##
+
+landcovSelection3 <- as.data.frame.matrix(landcovSelection)
+View(landcovSelection3)
+landcovSelection3$landcov <- rownames(landcovSelection3)
+landcovSelection3
+colnames(landcovSelection3)[1:2] <- c("avail","used")
+landcovSelection3$selection <- landcovSelection3$used / landcovSelection3$avail
+landcovSelection3$lnSelection <- log(landcovSelection3$selection)
+landcovSelection3
+hist(landcovSelection3$lnSelection)
+
+write.table(landcovSelection2, "wolfselection.csv", sep=",", row.names = TRUE, col.names=TRUE)
+
+
 #~# kristin this rowname label is fucked up
 
 #~# can't estimate selection of 0s, duh
@@ -402,7 +427,7 @@ write.table(landcovSelection2, "wolfselection.csv", sep=",", row.names = TRUE, c
 
 ## first we have to think about analyzing categorical variables using a new approach compared to categories.
 
-contrasts(wolfkde3$landcov.f) = contr.treatment(15) 
+contrasts(wolfkde3$landcov.f) = contr.treatment(14) 
 ## note here also that in my case I had 15 landcover types
 #~# kristin you did not rerun your code using set.seed, 
 
@@ -413,12 +438,17 @@ attributes(wolfkde3$landcov.f)
 ### note that while we have cleaned up the clouds and NA's, what shoudl we do about Burned-Grassland
 ### Herbaceous and Burn-Forests? Reclassify as Burned? We will return to this in a minute. 
 ## checking above, we see that 11, 12, and 13 are all burns. 
-levels(wolfkde3$landcov.f)[11:13] = "Burn"
+levels(wolfkde3$landcov.f)[10:12] = "Burn"
 ## note this then reduces us from 15 to 13 categories
-contrasts(wolfkde3$landcov.f) = contr.treatment(13)
+contrasts(wolfkde3$landcov.f) = contr.treatment(12)
 attributes(wolfkde3$landcov.f)
 
-# note how the design matrix has collapsed burn into one category? What other categories should we consider?
+
+################################################################################
+# skip from here to your models ##
+
+# note how the design matrix has collapsed burn into one category? 
+## What other categories should we consider?
 
 ## Logistic regression  
 # incorectly analyzed treating landcover16 as a continuous covariate
@@ -518,9 +548,9 @@ summary(full.model)
 ## To change the reference level to say Rock and ICe (9), 
 ##you simply reset the contrast/design matrix, for example,
 ## first recheck which # Rock-Ice is
-levels(wolfkde3$landcov.f) ## Ok it is # 10
+levels(wolfkde3$landcov.f) ## Ok it is # 9
 
-contrasts(wolfkde3$landcov.f) = contr.treatment(13, base = 10)
+contrasts(wolfkde3$landcov.f) = contr.treatment(12, base = 9)
 attributes(wolfkde3$landcov.f)
 # and note that rock-ice now is 0. 
 
@@ -559,8 +589,11 @@ wolfkde3$rockIce = ifelse(wolfkde3$habitatType == "Rock-Ice", 1, 0)
 wolfkde3$burn = ifelse(wolfkde3$habitatType == "Burn-Grassland", 1, 
                        ifelse(wolfkde3$habitatType == "Burn-Shrub", 1, 
                               ifelse(wolfkde3$habitatType == "Burn-Forest", 1,0 )))
-wolfkde3$alpineHerb = ifelse(wolfkde3$habitatType == "Alpine Herb", 1, 0)
-wolfkde3$alpineShrub = ifelse(wolfkde3$habitatType == "Alpine Shrub", 1, 0)
+#~# reclassified alineherb and alpineshrub as alpine
+wolfkde3$alpine = ifelse(wolfkde3$habitatType == "Alpine Herb", 1, 
+                       ifelse(wolfkde3$habitatType == "Alpine Shrub", 1,0 ))
+#wolfkde3$alpineHerb = ifelse(wolfkde3$habitatType == "Alpine Herb", 1, 0)
+#wolfkde3$alpineShrub = ifelse(wolfkde3$habitatType == "Alpine Shrub", 1, 0)
 
 head(wolfkde3)
 ### note now that the design matrix is manually set in the data.frame.  
@@ -569,7 +602,9 @@ head(wolfkde3)
 ## note you can also easily reclassify categories now, 
 ##but you have to mentally keep track of the unit-sum constraint
 
-wolfkde3$alpine = wolfkde3$alpineHerb + wolfkde3$alpineShrub
+#wolfkde3$alpine = wolfkde3$alpineHerb + wolfkde3$alpineShrub
+##kristin you can't do this here because then it still keeps alpineherb
+##and alpineshrub in the model as well
 
 ### refitting model with just Alpine and Rock and Ice as the intercept
 
@@ -611,14 +646,14 @@ summary(rock.alpine.regen.decid.intercept.model)
 
 #### I adopt the code from section 2.0 above to pull out all the coefficients and SE's and put them in one long table
 
-### CREATE TABLE OF COEFFS YOU WANT TO LOOK AT ####
+### CREATE TABLE OF COEFFS YOU WANT TO LOOK AT ###
 ## using the code below for the models you're interested in ##
 oc.ri.coefs.long = data.frame(rbind(
   summary(oc.intercept.model)$coefficients[,1:2], 
   summary(rockintercept.alpine.model)$coefficients[,1:2]))
 # Name your model
-coef.names = c("OpenConif", "closedConif", "modConif", "decid", 
-               "regen", "mixed", "herb", "water", "rockIce", "burn", "alpine")
+coef.names = c("openConif", "closedConif", "modConif", "decid", #"regen", 
+               "mixed", "herb", "water", "rockIce", "burn", "alpine")
 model.names = c("Open Conif Intercept", "RockIce Intercept")
 oc.ri.coefs.long$habitatType = paste(rep(coef.names, each=1))
 oc.ri.coefs.long$model = paste(rep(model.names, each=1))
@@ -629,10 +664,233 @@ oc.ri.coefs.long
 ## in the rock.model the B coefficient for Burn = 2.2 and Alpine is -1.086, an absolute difference of 3.29
 ## the same!
 
-## now lets make a figure of the Beta coefficients 
-
-ggplot(oc.ri.coefs.long, 
-       aes(x=habitatType, y=Estimate, colour=model)) + 
-       geom_point(size = 5)
-
+rockintercept.alpine.model.df <- data.frame(summary(rockintercept.alpine.model)$coefficients[,1:2])
+oc.intercept.model.df <- data.frame(summary(oc.intercept.model)$coefficients[,1:2])
+coef.table <- rbind(rockintercept.alpine.model.df,oc.intercept.model.df)
+coef.table$habitatType <- c(row.names((summary(rockintercept.alpine.model)$coefficients[,1:2])
+                                      ),row.names(summary(oc.intercept.model)$coefficients[,1:2]))
+coef.table$habitatType[1] <- "rockIce"
+coef.table$habitatType[12] <- "openConif"
+coef.table$model <-c(rep("Open Conif Intercept",10),rep( "RockIce Intercept",10))
+coef.table
+ggplot(coef.table, aes(x=habitatType, y=Estimate, colour=model)) + geom_point(size = 5) +
+  theme(axis.text.x = element_text(angle = 90))
 ## this figure tells us that RELATIVELY nothing has changed, only where the coefficients are relative to the yAxis
+
+
+
+###### MY MODELS #####
+
+# global
+m.glob <- glm(used~I(landcov.f), data=wolfkde3, family = binomial(logit))
+summary(m.glob)
+
+# global no intercept
+m.glob.noi <- glm(used~I(landcov.f) -1, data=wolfkde3, family = binomial(logit))
+summary(m.glob.noi)
+
+## global model without decid, regen, alpine herb
+m.glob3 <- glm(used~
+                  I(landcov.f=="Open Conifer")+
+                  I(landcov.f=="Moderate Conifer")+
+                  I(landcov.f=="Closed Conifer")+
+                  I(landcov.f=="Mixed")+
+                  I(landcov.f=="Herbaceous")+
+                  I(landcov.f=="Shrub")+
+                  I(landcov.f=="Water")+
+                  I(landcov.f=="Rock-Ice")+
+                  I(landcov.f=="Burn")+
+                  I(landcov.f=="Alpine Shrub"), 
+                data = wolfkde3, family = binomial(logit))
+summary(m.glob3)
+ 
+## same as above but mixed as reference cat 
+m.mixed <- glm(used~
+                  I(landcov.f=="Open Conifer")+
+                  I(landcov.f=="Moderate Conifer")+
+                  I(landcov.f=="Closed Conifer")+
+                  I(landcov.f=="Herbaceous")+
+                  I(landcov.f=="Shrub")+
+                  I(landcov.f=="Water")+
+                  I(landcov.f=="Rock-Ice")+
+                  I(landcov.f=="Burn")+
+                  I(landcov.f=="Alpine Shrub"), 
+                data = wolfkde3, family = binomial(logit))
+summary(m.mixed)
+
+## ref cat = modcon
+m.modcon <- glm(used~
+                  I(landcov.f=="Open Conifer")+
+                  I(landcov.f=="Closed Conifer")+
+                  I(landcov.f=="Mixed")+
+                  I(landcov.f=="Herbaceous")+
+                  I(landcov.f=="Shrub")+
+                  I(landcov.f=="Water")+
+                  I(landcov.f=="Rock-Ice")+
+                  I(landcov.f=="Burn")+
+                  I(landcov.f=="Alpine Shrub"), 
+                data = wolfkde3, family = binomial(logit))
+summary(m.mixed)
+
+## refcat = rockice
+m.rockice <- glm(used~
+                  I(landcov.f=="Open Conifer")+
+                  I(landcov.f=="Moderate Conifer")+
+                  I(landcov.f=="Closed Conifer")+
+                  I(landcov.f=="Mixed")+
+                  I(landcov.f=="Herbaceous")+
+                  I(landcov.f=="Shrub")+
+                  I(landcov.f=="Water")+
+                  I(landcov.f=="Burn")+
+                  I(landcov.f=="Alpine Shrub"), 
+                data = wolfkde3, family = binomial(logit))
+summary(m.rockice)
+
+
+
+### model selection ###
+
+library(AICcmodavg)
+
+## m.glob, m.glob.noi, m.glob3, m.mixed, m.modcon, m.rockice ##
+
+Cand.set <- list( )
+Cand.set[[1]] <- m.glob3
+Cand.set[[2]] <- m.mixed
+Cand.set[[3]] <- m.modcon
+Cand.set[[4]] <- m.rockice
+names(Cand.set) <- c("global-interceptwdecidregenalpherb",
+                     "mixed(decidregenalpherb)",
+                     "modcon(decidregenalpherb)",
+                     "rockice(decidregenalpherb)")
+aictable <- aictab(Cand.set, second.ord=TRUE)
+aicresults <- print(aictable, digits = 2, LL = FALSE)
+
+
+### extract coefficients from models ###
+
+## i have a list of models
+## for each model,
+
+## X names, jenky
+coeff.m.glob.noi <- data.frame(summary(m.glob.noi)$coefficients[,1:2])
+xnames <- data.frame(rownames(coeff.m.glob.noi))
+colnames(xnames) <- "temp"
+unique(xnames$temp)
+xnames$X <- c("Open Conifer", 
+              "Moderate Conifer",
+              "Closed Conifer",
+              "Deciduous",
+              "Mixed",
+              "Herbaceous",
+              "Shrub",
+              "Water",
+              "Rock-Ice",
+              "Burn",
+              "Alpine Herb",
+              "Alpine Shrub")
+fml <- data.frame(temp="(Intercept)", X="Intercept")
+cnames <- rbind(fml, xnames)
+
+coeff.m.glob3 <- data.frame(summary(m.glob3)$coefficients[,1:2])
+xnames <- data.frame(rownames(coeff.m.glob3))
+colnames(xnames) <- "temp"
+unique(xnames$temp)
+xnames$X <- c("Intercept",
+              "Open Conifer", 
+              "Moderate Conifer",
+              "Closed Conifer",
+              "Mixed",
+              "Herbaceous",
+              "Shrub",
+              "Water",
+              "Rock-Ice",
+              "Burn",
+              "Alpine Shrub")
+
+
+
+## extract coefficients ####
+
+# coeff.m.glob <- data.frame(summary(m.glob)$coefficients[,1:2])
+# coeff.m.glob$temp <- rownames(coeff.m.glob)
+# coeff.m.glob$X <- c("Open Conifer", "Moderate Conifer", "Closed Conifer",
+#                         "Deciduous", "Mixed", "Herbaceous", "Shrub",
+#                         "Water", "Rock-Ice", "Burn", "Alpine Herb", 
+#                         "Alpine Shrub")
+# coeff.m.glob <- coeff.m.glob %>%
+#   select(-temp) %>%
+#   mutate(Model = "m.glob")
+
+coeff.m.glob.noi <- data.frame(summary(m.glob.noi)$coefficients[,1:2])
+coeff.m.glob.noi$temp <- rownames(coeff.m.glob.noi)
+coeff.m.glob.noi$X <- c("Open Conifer", "Moderate Conifer", "Closed Conifer",
+                        "Deciduous", "Mixed", "Herbaceous", "Shrub",
+                        "Water", "Rock-Ice", "Burn", "Alpine Herb", 
+                        "Alpine Shrub")
+coeff.m.glob.noi <- coeff.m.glob.noi %>%
+  select(-temp) %>%
+  mutate(Model = "m.glob.noi")
+
+coeff.m.glob3 <- data.frame(summary(m.glob3)$coefficients[,1:2])
+coeff.m.glob3$temp <- rownames(coeff.m.glob3)
+coeff.m.glob3 <- left_join(coeff.m.glob3, cnames, by = "temp") %>%
+  select(-temp) %>%
+  mutate(Model = "m.glob3")
+
+coeff.m.mixed <- data.frame(summary(m.mixed)$coefficients[,1:2])
+coeff.m.mixed$temp <- rownames(coeff.m.mixed)
+coeff.m.mixed <- left_join(coeff.m.mixed, cnames, by = "temp") %>%
+  select(-temp) %>%
+  mutate(Model = "m.mixed")
+
+coeff.m.modcon <- data.frame(summary(m.modcon)$coefficients[,1:2])
+coeff.m.modcon$temp <- rownames(coeff.m.modcon)
+coeff.m.modcon <- left_join(coeff.m.modcon, cnames, by = "temp") %>%
+  select(-temp) %>%
+  mutate(Model = "m.modcon")
+
+coeff.m.rockice <- data.frame(summary(m.rockice)$coefficients[,1:2])
+coeff.m.rockice$temp <- rownames(coeff.m.rockice)
+coeff.m.rockice <- left_join(coeff.m.rockice, cnames, by = "temp") %>%
+  select(-temp) %>%
+  mutate(Model = "m.rockice")
+
+mostcoeffs <- rbind(coeff.m.glob3, coeff.m.mixed,
+                    coeff.m.modcon, coeff.m.rockice)
+write.csv(mostcoeffs, file = "mostcoeffs.csv", row.names=F)
+
+mostcoeffs2 <- filter(mostcoeffs, Model != "m.glob3")
+## plotting ####
+
+betas <- mostcoeffs2 %>%
+  dplyr::filter(X != "Intercept" &
+                  X != "Deciduous" &
+                  X != "Alpine Herb") %>%
+  mutate(Intercept = ifelse(#Model == "m.glob3",
+                       #"No observed use",
+                  ifelse(Model == "m.mixed",
+                         "Mixed",
+                  ifelse(Model == "m.modcon",
+                         "Moderate Conifer",
+                  "Rock-Ice"))))
+# 
+# betas$Estimate <- factor(betas$Estimate, 
+#                          levels = c("Mixed, Water",
+#                                     "Burn", "Herbaceous",
+#                                     "Shrub", "Open Conifer",
+#                                     "Moderate Conifer", 
+#                                     "Closed Conifer",
+#                                     "Alpine Shrub",
+#                                     "Rock-Ice"))
+
+ggplot(betas, aes(x=X, 
+                  y=Estimate, 
+                  shape=Intercept)) + 
+  geom_point(position = position_dodge(width = 0.2)) +
+  scale_shape_manual(values=c(0, 1, 2, 3, 4)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(x = "")
+
+
+#### shit i meant to
