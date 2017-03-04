@@ -1,0 +1,8 @@
+"mod","res"
+"prefpreymoose",472.549885469943
+"human",468.887258581474
+"prey+hum",446.840928798998
+"prey*canopy",467.46748980405
+"human*canopy",445.926642713734
+"prey*canopy-human*canopy",448.121909914896
+"prey-human*canopy",443.274082114441
