@@ -34,13 +34,12 @@ rm(wd_workcomp, wd_laptop)
 
 
 ####### MANUALLY SET DATA SOURCE ##
-#wolfdata <- read.csv("wolfkde.csv", header=TRUE, sep = ",", na.strings="NA", dec=".")
-#wolfdata2 <- na.omit(wolfdata)
-#wolfdata2 <- na.omit(wolfdata) %>%
+
+wolfdata <- read.csv("wolfkde.csv", header=TRUE, sep = ",", na.strings="NA", dec=".")
+wolfdata2 <- na.omit(wolfdata) #%>%
 #  subset(pack == "Red Deer")
 
-wolfdata <- read.csv("wolfmcp.csv", header=TRUE, sep = ",", na.strings="NA", dec=".")
-wolfdata2 <- na.omit(wolfdata)
+
 
 #### ASSESSING CONFOUNDING VARIABLES ####
 
@@ -166,35 +165,9 @@ wolfdata2 <- wolfdata2 %>%
          shrubreg = shrub + regen)
 # adding combined deer/elk
 wolfdata2$prefprey <- (wolfdata2$deer_w2 + wolfdata2$elk_w2)/2
-wolfdata2$prefprey <- (wolfdata2$deer_w2 + wolfdata2$elk_w2 + wolfdata2$elk_w2)/3
+wolfdata2$prefpreys <- (wolfdata2$deer_w2 + wolfdata2$elk_w2 + 
+                         wolfdata2$moose_w2)/3
 
-
-cor.prob <- function(X, dfr = nrow(X) - 2) {
-  R <- cor(X, use="complete.obs")
-  above <- row(R) < col(R)
-  r2 <- R[above]^2
-  Fstat <- r2 * dfr / (1 - r2)
-  R[above] <- 1 - pf(Fstat, 1, dfr)
-  R
-}
-
-combocorr <- cor.prob(data.frame(wolfdata2[,c("prefprey",
-                               "moose_w2", 
-                               "sheep_w2", 
-                               "goat_w2", 
-                               "Elevation2", 
-                               "DistFromHumanAccess2", 
-                               "populus", 
-                               "alpinerock", 
-                               "shrubreg",
-                               "closedConif",
-                               "modConif",
-                               "openConif",
-                               "herb",
-                               "water",
-                               "burn")]))
-
-#write.csv(combocorr, "correlationsforrealz.csv")
 
 
 
@@ -211,12 +184,13 @@ mods[[3]] <- glm(used ~ deer_w2,
                  data = wolfdata2, family = binomial(logit))
 modnms <- c("prefprey", "elk", "deer")
 aictab(cand.set = mods, modnames = modnms)
+BIC(mods[[1]]); BIC(mods[[2]]); BIC(mods[[3]])
 # prefprey ftw
 
 
-## including moose as potential prefprey
+## now include moose as potential prefprey (specific to RD)
 mods <- list()
-mods[[1]] <- glm(used ~ prefprey, 
+mods[[1]] <- glm(used ~ prefpreys, 
                  data = wolfdata2, family = binomial(logit))
 mods[[2]] <- glm(used ~ elk_w2, 
                  data = wolfdata2, family = binomial(logit))
@@ -224,10 +198,16 @@ mods[[3]] <- glm(used ~ deer_w2,
                  data = wolfdata2, family = binomial(logit))
 mods[[4]] <- glm(used ~ moose_w2, 
                  data = wolfdata2, family = binomial(logit))
-modnms <- c("prefprey", "elk", "deer", "moose")
+modnms <- c("prefpreys", "elk", "deer", "moose")
+BIC(mods[[1]]); BIC(mods[[2]]); BIC(mods[[3]]); BIC(mods[[4]])
 aictab(cand.set = mods, modnames = modnms)
-# prefprey ftw
+# deer wins here
+## so using prefprey bc already know that's better than deer
 
+
+## below line renames prefpreys to prefprey 
+  ## to keep below code same for red deer specifically
+#wolfdata2$prefprey <- wolfdata2$prefpreys
 
 ## a priori hypotheses
 mods <- list()
@@ -285,6 +265,11 @@ topmod2 <- glm(used ~ prefprey + closed +
                  data = wolfdata2, family = binomial(logit))
 summary(topmod2)
 
+# intrxn with just human
+topmod3 <- glm(used ~ closed + 
+                   DistFromHumanAccess2 + DistFromHumanAccess2*closed, 
+                 data = wolfdata2, family = binomial(logit))
+summary(topmod3)
 
 
 
