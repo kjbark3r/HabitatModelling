@@ -37,9 +37,26 @@ rm(wd_workcomp, wd_laptop)
 
 wolfdata <- read.csv("wolfkde.csv", header=TRUE, sep = ",", na.strings="NA", dec=".")
 wolfdata2 <- na.omit(wolfdata) #%>%
-#  subset(pack == "Red Deer")
+  #subset(pack == "Bow Valley")
 
+## add "closed" canopy cover covariate
+wolfdata2$closed <- wolfdata2$closedConif + wolfdata2$modConif + 
+                    wolfdata2$openConif + wolfdata2$decid + 
+                    wolfdata2$mixed + wolfdata2$burn
+wolfdata2$closedFactor <-as.factor(wolfdata2$closed)
+wolfdata2$closedFactor <- ifelse(wolfdata2$closedFactor == 0, 
+                                 "Open", "Closed")
 
+# collapsing some types 
+wolfdata2 <- wolfdata2 %>%
+  mutate(populus = decid+mixed,
+         alpinerock = alpine+rockIce,
+         shrubreg = shrub + regen)
+
+# adding combined deer/elk
+wolfdata2$prefprey <- (wolfdata2$deer_w2 + wolfdata2$elk_w2)/2
+wolfdata2$prefpreys <- (wolfdata2$deer_w2 + wolfdata2$elk_w2 + 
+                         wolfdata2$moose_w2)/3
 
 #### ASSESSING CONFOUNDING VARIABLES ####
 
@@ -292,6 +309,279 @@ plotprey <- ggplot(wolfdata2, aes(x=prefprey,
               level=0.95) 
 grid.arrange(plothum, plotprey, nrow=2)
 
+
+
+
+#### OR PLOTS ####
+wolfdata <- read.csv("wolfkde.csv")
+wolfdata2 <- na.omit(wolfdata)
+
+## add "closed" canopy cover covariate
+wolfdata2$closed <- wolfdata2$closedConif + wolfdata2$modConif + 
+                    wolfdata2$openConif + wolfdata2$decid + 
+                    wolfdata2$mixed + wolfdata2$burn
+wolfdata2$closedFactor <-as.factor(wolfdata2$closed)
+wolfdata2$closedFactor <- ifelse(wolfdata2$closedFactor == 0, 
+                                 "Open", "Closed")
+
+# collapsing some types 
+wolfdata2 <- wolfdata2 %>%
+  mutate(populus = decid+mixed,
+         alpinerock = alpine+rockIce,
+         shrubreg = shrub + regen)
+
+# adding combined deer/elk
+wolfdata2$prefprey <- (wolfdata2$deer_w2 + wolfdata2$elk_w2)/2
+wolfdata2$prefpreys <- (wolfdata2$deer_w2 + wolfdata2$elk_w2 + 
+                         wolfdata2$moose_w2)/3 
+outputskde <- data.frame(
+	Mod = character(),
+	OddsRatio = numeric(),
+	LowCI = numeric(),
+	HighCI = numeric(),
+	stringsAsFactors = FALSE)
+
+modnameskde <- c("preyhum", "preyhumcan",
+			  stringsAsFactors=FALSE)
+			  
+for(i in 1:2) {
+	mod = modnameskde[i]
+	outputskde[i,1] <- paste(mod)
+	}
+
+preyhum <- glm(used ~ deer_w2 + 
+                   DistFromHumanAccess2, 
+                 data = wolfdata2, family = binomial(logit))
+preyhumcan <- glm(used ~ deer_w2 + 
+                   closed +
+                   DistFromHumanAccess2 + 
+                   DistFromHumanAccess2*closed, 
+                 data = wolfdata2, family = binomial(logit))
+
+outputskde[1,2] <- exp(coef(preyhum)[2])
+outputskde[1,3] <- exp(confint(preyhum)[2,1])
+outputskde[1,4] <- exp(confint(preyhum)[2,2])
+
+outputskde[2,2] <- exp(coef(preyhumcan)[2])
+outputskde[2,3] <- exp(confint(preyhumcan)[2,1])
+outputskde[2,4] <- exp(confint(preyhumcan)[2,2])
+
+
+## BOW VALLEY ##
+
+wolfdata2 <- na.omit(wolfdata) %>%
+  subset(pack == "Bow Valley")
+
+## add "closed" canopy cover covariate
+wolfdata2$closed <- wolfdata2$closedConif + wolfdata2$modConif + 
+                    wolfdata2$openConif + wolfdata2$decid + 
+                    wolfdata2$mixed + wolfdata2$burn
+wolfdata2$closedFactor <-as.factor(wolfdata2$closed)
+wolfdata2$closedFactor <- ifelse(wolfdata2$closedFactor == 0, 
+                                 "Open", "Closed")
+
+# collapsing some types 
+wolfdata2 <- wolfdata2 %>%
+  mutate(populus = decid+mixed,
+         alpinerock = alpine+rockIce,
+         shrubreg = shrub + regen)
+
+# adding combined deer/elk
+wolfdata2$prefprey <- (wolfdata2$deer_w2 + wolfdata2$elk_w2)/2
+wolfdata2$prefpreys <- (wolfdata2$deer_w2 + wolfdata2$elk_w2 + 
+                         wolfdata2$moose_w2)/3 
+
+outputsbv <- data.frame(
+	Mod = character(),
+	OddsRatio = numeric(),
+	LowCI = numeric(),
+	HighCI = numeric(),
+	stringsAsFactors = FALSE)
+
+modnamesbv <- c("preyhum", "preyhumcan",
+			  stringsAsFactors=FALSE)
+			  
+for(i in 1:2) {
+	mod = modnamesbv[i]
+	outputsbv[i,1] <- paste(mod)
+	}
+
+preyhum <- glm(used ~ prefprey + 
+                   DistFromHumanAccess2, 
+                 data = wolfdata2, family = binomial(logit))
+preyhumcan <- glm(used ~ prefprey + 
+                   closed +
+                   DistFromHumanAccess2 + 
+                   DistFromHumanAccess2*closed, 
+                 data = wolfdata2, family = binomial(logit))
+
+outputsbv[1,2] <- exp(coef(preyhum)[2])
+outputsbv[1,3] <- exp(confint(preyhum)[2,1])
+outputsbv[1,4] <- exp(confint(preyhum)[2,2])
+
+outputsbv[2,2] <- exp(coef(preyhumcan)[2])
+outputsbv[2,3] <- exp(confint(preyhumcan)[2,1])
+outputsbv[2,4] <- exp(confint(preyhumcan)[2,2])
+
+
+## RED DEER ##
+
+wolfdata2 <- na.omit(wolfdata) %>%
+  subset(pack == "Red Deer")
+
+## add "closed" canopy cover covariate
+wolfdata2$closed <- wolfdata2$closedConif + wolfdata2$modConif + 
+                    wolfdata2$openConif + wolfdata2$decid + 
+                    wolfdata2$mixed + wolfdata2$burn
+wolfdata2$closedFactor <-as.factor(wolfdata2$closed)
+wolfdata2$closedFactor <- ifelse(wolfdata2$closedFactor == 0, 
+                                 "Open", "Closed")
+
+# collapsing some types 
+wolfdata2 <- wolfdata2 %>%
+  mutate(populus = decid+mixed,
+         alpinerock = alpine+rockIce,
+         shrubreg = shrub + regen)
+
+# adding combined deer/elk
+wolfdata2$prefprey <- (wolfdata2$deer_w2 + wolfdata2$elk_w2)/2
+wolfdata2$prefpreys <- (wolfdata2$deer_w2 + wolfdata2$elk_w2 + 
+                         wolfdata2$moose_w2)/3 
+
+outputsrd <- data.frame(
+	Mod = character(),
+	OddsRatio = numeric(),
+	LowCI = numeric(),
+	HighCI = numeric(),
+	stringsAsFactors = FALSE)
+
+modnamesrd <- c("preyhum", "preyhumcan",
+			  stringsAsFactors=FALSE)
+			  
+for(i in 1:2) {
+	mod = modnamesrd[i]
+	outputsrd[i,1] <- paste(mod)
+	}
+
+preyhum <- glm(used ~ prefpreys + 
+                   DistFromHumanAccess2, 
+                 data = wolfdata2, family = binomial(logit))
+preyhumcan <- glm(used ~ prefpreys + 
+                   closed +
+                   DistFromHumanAccess2 + 
+                   DistFromHumanAccess2*closed, 
+                 data = wolfdata2, family = binomial(logit))
+
+outputsrd[1,2] <- exp(coef(preyhum)[2])
+outputsrd[1,3] <- exp(confint(preyhum)[2,1])
+outputsrd[1,4] <- exp(confint(preyhum)[2,2])
+
+outputsrd[2,2] <- exp(coef(preyhumcan)[2])
+outputsrd[2,3] <- exp(confint(preyhumcan)[2,1])
+outputsrd[2,4] <- exp(confint(preyhumcan)[2,2])
+
+
+## MCP - run partly in other R code ##
+## due to data discrepancies ##
+
+
+
+wolfdata <- read.csv("wolfmcp.csv")
+wolfdata2 <- na.omit(wolfdata)
+
+wolfdata2 <- wolfdata2 %>%
+  rename(deer_w2 = deerwin,
+         elk_w2 = elkwint,
+         moose_w2 = moosewi,
+         sheep_w2 = sheepwi,
+         goat_w2 = goatwin,
+         wolf_w2 = wolfwin,
+         Elevation2 = elevati,
+         DistFromHumanAccess2 = distacc,
+         DistFromHighHumanAccess2 = disthha,
+         habitatType = habitattyp,
+         closedConif = ClosedConifer,
+         modConif = ModerateConifer,
+         openConif = OpenConifer,
+         mixed = MixedForest,
+         herb = Herbaceous,
+         shrub = Shrub,
+         water = Water,
+         alpineHerb = AlpineHerb,
+         alpineShrub = AlpineShrub) %>%
+  mutate(alpine = alpineHerb+alpineShrub)
+
+## add "closed" canopy cover covariate
+wolfdata2$closed <- wolfdata2$closedConif + wolfdata2$modConif + 
+                    wolfdata2$openConif + 
+                    wolfdata2$mixed + wolfdata2$burn
+wolfdata2$closedFactor <-as.factor(wolfdata2$closed)
+wolfdata2$closedFactor <- ifelse(wolfdata2$closedFactor == 0, 
+                                 "Open", "Closed")
+
+# collapsing some types 
+wolfdata2 <- wolfdata2 %>%
+  mutate(alpinerock = alpine+RockIce)
+
+# adding combined deer/elk
+wolfdata2$prefprey <- (wolfdata2$deer_w2 + wolfdata2$elk_w2)/2
+wolfdata2$prefpreys <- (wolfdata2$deer_w2 + wolfdata2$elk_w2 + 
+                          wolfdata2$moose_w2)/3
+         
+# store outputs
+outputsmcp <- data.frame(
+	Mod = character(),
+	OddsRatio = numeric(),
+	LowCI = numeric(),
+	HighCI = numeric(),
+	stringsAsFactors = FALSE)
+
+modnamesmcp <- c("preyhum", "preyhumcan",
+			  stringsAsFactors=FALSE)
+			  
+for(i in 1:2) {
+	mod = modnamesmcp[i]
+	outputsmcp[i,1] <- paste(mod)
+	}
+
+preyhum <- glm(used ~ deer_w2 + 
+                   DistFromHumanAccess2, 
+                 data = wolfdata2, family = binomial(logit))
+preyhumcan <- glm(used ~ deer_w2 + 
+                   closed +
+                   DistFromHumanAccess2 + 
+                   DistFromHumanAccess2*closed, 
+                 data = wolfdata2, family = binomial(logit))
+
+outputsmcp[1,2] <- exp(coef(preyhum)[2])
+outputsmcp[1,3] <- exp(confint(preyhum)[2,1])
+outputsmcp[1,4] <- exp(confint(preyhum)[2,2])
+
+outputsmcp[2,2] <- exp(coef(preyhumcan)[2])
+outputsmcp[2,3] <- exp(confint(preyhumcan)[2,1])
+outputsmcp[2,4] <- exp(confint(preyhumcan)[2,2])
+
+## all together now ##
+
+ors <- rbind(outputskde, outputsmcp, outputsbv, outputsrd)
+ors$Model <- c("KDEa", "KDEb", "MCPa", "MCPb",
+               "BVa", "BVb", "RDa", "RDb")
+
+
+
+## ok srsly here are the plots ##
+preydat <- subset(ors, )
+preyplot <- ggplot(data = ors, 
+       aes(x = Pack,
+           y = OddsRatio,
+           shape = Method,
+           ymin = LowCI, 
+           ymax = HighCI)) +
+        geom_point(position = position_dodge(width = 0.2)) +
+        geom_errorbar(position = position_dodge(width = 0.2), width = 0.1) +
+        scale_shape_manual(values=c(1,4)) +
+        labs(title = "Elevation", x = "") +
+        theme(legend.position="none")
 
 
 #### INTERPRETATIONS ####
