@@ -204,7 +204,7 @@ mods[[3]] <- glm(used ~ deer_w2,
                  data = wolfdata2, family = binomial(logit))
 modnms <- c("prefprey", "elk", "deer")
 aictab(cand.set = mods, modnames = modnms)
-# prefprey ftw
+# prefprey or deer
 
 
 ## including moose as potential prefprey
@@ -219,32 +219,32 @@ mods[[4]] <- glm(used ~ moose_w2,
                  data = wolfdata2, family = binomial(logit))
 modnms <- c("prefpreys", "elk", "deer", "moose")
 aictab(cand.set = mods, modnames = modnms)
-# prefprey ftw
+# deer
 
 
 ## a priori hypotheses
 mods <- list()
-mods[[1]] <- glm(used ~ prefprey, 
+mods[[1]] <- glm(used ~ deer_w2, 
                  data = wolfdata2, family = binomial(logit))
 mods[[2]] <- glm(used ~ DistFromHumanAccess2, 
                  data = wolfdata2, family = binomial(logit))
-mods[[3]] <- glm(used ~ prefprey + 
+mods[[3]] <- glm(used ~ deer_w2 + 
                    DistFromHumanAccess2, 
                  data = wolfdata2, family = binomial(logit))
-mods[[4]] <- glm(used ~ prefprey + 
+mods[[4]] <- glm(used ~ deer_w2 + 
                    closed + 
-                   prefprey*closed, 
+                   deer_w2*closed, 
                  data = wolfdata2, family = binomial(logit))
 mods[[5]] <- glm(used ~ DistFromHumanAccess2 + 
                    closed + 
                    DistFromHumanAccess2*closed, 
                  data = wolfdata2, family = binomial(logit))
-mods[[6]] <- glm(used ~ prefprey + 
-                   closed + prefprey*closed +
+mods[[6]] <- glm(used ~ deer_w2 + 
+                   closed + deer_w2*closed +
                    DistFromHumanAccess2 + 
                    DistFromHumanAccess2*closed, 
                  data = wolfdata2, family = binomial(logit))
-mods[[7]] <- glm(used ~ prefprey + 
+mods[[7]] <- glm(used ~ deer_w2 + 
                    closed +
                    DistFromHumanAccess2 + 
                    DistFromHumanAccess2*closed, 
@@ -263,7 +263,7 @@ bictab <- data.frame(mod = c("prefprey", "human", "prey+hum", "prey*canopy",
                     BIC(mods[[4]]), BIC(mods[[5]]), BIC(mods[[6]]),
                     BIC(mods[[7]])))
 arrange(bictab, res)
-write.csv(bictab, "bic-reddeer.csv", row.names=F)
+write.csv(bictab, "bic-mcp.csv", row.names=F)
 
 
 

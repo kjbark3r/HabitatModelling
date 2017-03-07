@@ -36,8 +36,8 @@ rm(wd_workcomp, wd_laptop)
 ####### MANUALLY SET DATA SOURCE ##
 
 wolfdata <- read.csv("wolfkde.csv", header=TRUE, sep = ",", na.strings="NA", dec=".")
-wolfdata2 <- na.omit(wolfdata) #%>%
-  #subset(pack == "Bow Valley")
+wolfdata2 <- na.omit(wolfdata) %>%
+  subset(pack == "Bow Valley")
 
 ## add "closed" canopy cover covariate
 wolfdata2$closed <- wolfdata2$closedConif + wolfdata2$modConif + 
@@ -57,6 +57,7 @@ wolfdata2 <- wolfdata2 %>%
 wolfdata2$prefprey <- (wolfdata2$deer_w2 + wolfdata2$elk_w2)/2
 wolfdata2$prefpreys <- (wolfdata2$deer_w2 + wolfdata2$elk_w2 + 
                          wolfdata2$moose_w2)/3
+
 
 #### ASSESSING CONFOUNDING VARIABLES ####
 

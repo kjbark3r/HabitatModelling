@@ -1,8 +1,8 @@
-"mod","res"
-"prefprey",1078.88537447357
-"human",1171.77258311735
-"prey+hum",1001.67666528559
-"prey*canopy",1092.0094730088
-"human*canopy",1168.43454734576
-"prey*canopy-human*canopy",1012.84369378622
-"prey-human*canopy",1007.46998238206
+mod,res,dBIC
+prey+hum,1001.676665,0
+prey-human*canopy,1007.469982,5.793317096
+prey*canopy-human*canopy,1012.843694,11.1670285
+prefprey,1078.885374,77.20870919
+prey*canopy,1092.009473,90.33280772
+human*canopy,1168.434547,166.7578821
+human,1171.772583,170.0959178
