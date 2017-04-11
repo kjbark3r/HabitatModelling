@@ -1,6 +1,7 @@
-####################################################################################################################################
+
 # WILD 562 - R code for LAB 9 - Step Selection Functions & Dynamic NDVI
-####################################################################################################################################
+
+
 
 ### Mark Hebblewhite
 ### Daniel Eacker
@@ -29,30 +30,30 @@ packages <- c("sp","raster","rgdal","ggmap","survival","TwoStepCLogit","pbs","dp
 #run function to install packages
 ipak(packages)
 
-##### 0.1 Preliminaries: setting working directory #######################################################################
+
+
+##### 0.1 Preliminaries: setting working directory ####
 
 ## define working directory on each computer
-#wd_laptop <- "C:/Users/danea/OneDrive/Documents/Archive (1)/Lab8_new"
-#wd_desktop <- "C:/Users/danea/OneDrive/Documents/Archive (1)/Lab8_new"
-
-wd_laptop <- "/Users/mark.hebblewhite/Dropbox/WILD 562/Spring2017/lab9/"
-wd_desktop <- "/Users/mark.hebblewhite/Documents/Teaching/UofMcourses/WILD562/Spring2017/Labs/lab9/" 
-
+wd_desktop <- "C:\\Users\\kristin.barker\\Documents\\GitHub\\HabitatModelling\\Lab9_cLogit2"
+wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\GitHub\\HabitatModelling\\Lab9_cLogit2"
 ## automatically set working directory depending which computer you're on
 ifelse(file.exists(wd_laptop), setwd(wd_laptop), setwd(wd_desktop)) 
-getwd()
-list.files() ## handy command to see what is inside the working directory
+list.files()
 
-####################################################################################################################################	####################################################################################################################################
+rm(packages, wd_desktop, wd_laptop, ipak)
 
-####################################################################################################################################
+
+## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## 
+
 # load custom functions from BjÃ¶rn Reineking 
 source("ssf_fun_2016_final.R", verbose = FALSE)
 
 
-####################################################################################################################################
-## Create ssf for MoveStack - multiple individuals (note that this should follow the Björn Reineking code more closely since
-# that code was created for a MoveStack
+
+## Create ssf for MoveStack - multiple individuals 
+# (note that this should follow the Björn Reineking code more 
+# closely since that code was created for a MoveStack
 
 # Read in data for all elk
 yl.all <- read.csv("yl_all.csv",header=T)
@@ -63,7 +64,8 @@ head(yl.all)
 yl.all$elkuidF <- as.factor(yl.all$ELKUID)
 
 #### Get to know our data graphically
-ggplot(yl.all, aes(x=UTMX, y = UTMY, color = elkuidF)) + geom_point()
+ggplot(yl.all, aes(x=UTMX, y = UTMY, color = elkuidF)) + 
+  geom_point()
 
 #look at elk ids
 levels(yl.all$elkuidF)
@@ -113,7 +115,9 @@ all.mv <- move(x=yl.all$UTMX, y=yl.all$UTMY,
                 time=yl.all$rtime, 
                 data=yl.all, proj=CRS("+proj=utm +zone=11 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0"), animal=yl.all$ElkID, removeDuplicatedTimestamps=F)
 
-####################################################################################################################################
+
+## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## 
+
 # get distance step length and turn angle summaries
 angle_dist <- prepare_angle_dist(all.mv)
 # Inspect the data
@@ -126,9 +130,13 @@ rel.angle3 <- angle_dist[,2]
 par(mfrow = c(1, 2))
 hist(dist, breaks = 20, main = "", xlab = "Distance (m)")
 hist(rel.angle3, breaks = seq(-pi, pi,len=11), main="", xlab="Relative angle (radians)")
+#~# here we assume step length and turning angles
+#~# are distributed the same for all elk
+
 
 summary(dist)
-## seems likely that the 35km movement in 2 hours is an outlier, would need to screen out?
+## seems likely that the 35km movement in 2 hours is an 
+# outlier, would need to screen out?
 
 
 # Fit distributions to distances
@@ -144,17 +152,22 @@ AICout
 ## So logn seems to be the best fitting function
 
 par(mfrow = c(1,1))
-hist(dist, breaks = 50, prob = TRUE, xlim = c(0, 8000), ylim = c(0, 2e-3),xlab = "Step length (m)", main = "")
-plot(function(x) dexp(x, rate = fexp$estimate), add = TRUE, from = 0, to = 5000)
-plot(function(x) dexp(x, rate = fexp$estimate/2), add = TRUE, from = 0, to = 5000, col="purple")
-plot(function(x) dgamma(x, shape = fgam$estimate["shape"], rate = fgam$estimate["rate"]), add = TRUE, 
+hist(dist, breaks = 50, prob = TRUE, xlim = c(0, 8000), 
+     ylim = c(0, 2e-3),
+     xlab = "Step length (m)", main = "")
+plot(function(x) dexp(x, rate = fexp$estimate), add = TRUE, 
+     from = 0, to = 5000)
+plot(function(x) dexp(x, rate = fexp$estimate/2), add = TRUE, 
+     from = 0, to = 5000, col="purple")
+plot(function(x) dgamma(x, shape = fgam$estimate["shape"], 
+                        rate = fgam$estimate["rate"]), add = TRUE, 
      from = 0, to = 5000, col = "red")
 plot(function(x) dlnorm(x, meanlog = flogn$estimate["meanlog"], 
                         sdlog = flogn$estimate["sdlog"]), add = TRUE, 
      from = 0, to = 5000, col = "blue")
 plot(function(x) dhalfnorm(x, theta = 1/mean(dist)), add = TRUE, 
      from = 0, to = 5000, col = "green")
-legend("topright", lty = 1, col = c("black", "red", "blue", "green"),
+legend("topright", lty = 1, col = c("black", "purple", "red", "blue", "green"),
        legend = c("exp","exp/2" ,"gamma", "lnorm", "halfnorm"))
 
 # Fit distributions to angles
@@ -163,12 +176,19 @@ fkappa
 
 hist(rel.angle3, prob = TRUE, main = "", xlab = "Turning angle")
 # use distribution von Mi
-plot(function(x) dvonmises(x, circular(0), kappa=fkappa), add = TRUE, from = -pi, to = pi, col = "red")
+plot(function(x) dvonmises(x, circular(0), kappa=fkappa), 
+     add = TRUE, from = -pi, to = pi, col = "red")
+#~# shows quite a bit of directional presistence,
+#~# not so many 180-degree turns
+
+#~# PS - these data are already thinned for 2-hr step lengths
 
 # set projection for estimation
 utm_crs <- "+proj=utm +zone=11 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0"
 
-####################################################################################################################################
+
+
+## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## 
 # run prepare_ssf_steps on all elk
 
 # set the number of control locations
@@ -201,17 +221,18 @@ legend("topleft", legend=c("available", "used"), col = c("green","red"),pch = 1)
 
 # dev.off()
 
-################################################################################################################################
-####################################################################################################################################
-####################################################################################################################################
-######## Objective 3.0 Build covariate dataset
+
+## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## 
+######## Objective 3.0 Build covariate dataset ####
 
 
 #create an empty raster
 mask.raster <- raster()
 
-#set extent (note that I customized this extent so it covered both elc_habitat and humanacess)
-extent(mask.raster) <- c(xmin=443680.6, xmax=650430.4, ymin=5618405, ymax=5789236) 	
+#set extent (note that I customized this extent so it 
+# covered both elc_habitat and humanacess)
+extent(mask.raster) <- c(xmin=443680.6, xmax=650430.4, 
+                         ymin=5618405, ymax=5789236) 	
 
 #set the resolution to 30 m 
 res(mask.raster)<-30
@@ -222,20 +243,15 @@ projection(mask.raster)<- utm_crs
 #set all values of mask.raster to zero
 mask.raster[]<-0
 
-# check working directory
-getwd()
+# read in rasters
+elevation<-raster("../Lab8_Mvmt-Clogit/Elevation2.tif") #resampled
+disthumanaccess2<-raster("../Lab8_Mvmt-Clogit/DistFromHumanAccess2.tif") #resampled
+disthhu<-raster("../Lab8_Mvmt-Clogit/DistFromHighHumanAccess2.tif")
+landcover<-raster("../Lab8_Mvmt-Clogit/landcover16.tif") 
 
-# set working directory to read in other raster layers (I needed this to get the projection from a layer)
-setwd("C:/Users/danea/OneDrive/Documents/Archive (1)/Lab8_new")
-rasterDirectory = "/Users/mark.hebblewhite/Dropbox/WILD 562/Spring2017/wild562_gisdata/"
-setwd(rasterDirectory)
-getwd()
-elevation<-raster("Elevation2.tif") #resampled
-disthumanaccess2<-raster("DistFromHumanAccess2.tif") #resampled
-disthhu<-raster("DistFromHighHumanAccess2.tif")
-landcover<-raster("landcover16.tif") 
-
-#  set the resolution to utm_crs above (same as ssf_data6) and 're'project these covariate layers, note this will take a while
+#  set the resolution to utm_crs above (same as ssf_data6) 
+# and 're'project these covariate layers, note this will take 
+# a while
 elevation <- projectRaster(elevation, mask.raster)
 disthumanaccess2 <- projectRaster(disthumanaccess2, mask.raster)
 disthhu <- projectRaster(disthhu, mask.raster)
@@ -246,9 +262,11 @@ elevation@crs@projargs
 
 #  MAKE NDVI_ID variable
 
-## Need to know the start and stop dates for each MODIS tile for each MODIS product for the year in which you are extracting data
+## Need to know the start and stop dates for each MODIS tile for 
+# each MODIS product for the year in which you are extracting data
 
-# check min and max dates of timestamp for ssf_data6 (a SpatialPointsDataFrame for all individuals ssf)
+# check min and max dates of timestamp for ssf_data6 
+# (a SpatialPointsDataFrame for all individuals ssf)
 min(ssf_data6@data$date)
 #"2003-04-15 02:00:00 MDT"
 
@@ -263,7 +281,6 @@ ssf_data6@data$Day <- as.numeric(substr(ssf_data6@data$date, 9, 10))
 
 # create NDVI_ID 
 ssf_data6@data$NDVI_ID<-with(ssf_data6@data, 
-
 	ifelse(Month=="4" & Day<23, 7,
 	ifelse(Month=="4" & Day>=23 | Month=="5" & Day<9, 8,
 	ifelse(Month=="5" & Day>=9  & Day<25, 9,
@@ -280,6 +297,9 @@ ssf_data6@data$NDVI_ID<-with(ssf_data6@data,
 
 # examine NDVI_ID
 table(ssf_data6@data$NDVI_ID)
+table(ssf_data@data$Month, ssf_data@data$NDVI_ID)
+#~# above verifies where data falls in NDVI id's
+#~# makes diagonal, as expected
 
 ssf_data6@data$NDVI_ID2 <- as.character(ssf_data6@data$NDVI_ID)
 
@@ -290,34 +310,32 @@ for(i in 1:length(ssf_data6@data$NDVI_ID)){
 }
 
 
-############################################################
-#read in 2003 NDVI Raster layers (note these have been resampled to the resolution and extent and crs of the other rasters)
+## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## 
+#read in 2003 NDVI Raster layers (note these have been resampled to 
+# the resolution and extent and crs of the other rasters)
 
-# MAKE SURE WORKING DIRECTORY IS POINTED AT NDVI FILES
-ndviDir = "/Users/mark.hebblewhite/Dropbox/WILD 562/Spring2017/Lab9/2003_NDVI"
-setwd(ndviDir)
-getwd()
-list.files()
 
 # read in NDVI rasters
-NDVI_2003_07<-raster("NDVI_2003_07.tif") 
-NDVI_2003_08<-raster("NDVI_2003_08.tif") 
-NDVI_2003_09<-raster("NDVI_2003_09.tif") 
-NDVI_2003_10<-raster("NDVI_2003_10.tif") 
-NDVI_2003_11<-raster("NDVI_2003_11.tif") 
-NDVI_2003_12<-raster("NDVI_2003_12.tif") 
-NDVI_2003_13<-raster("NDVI_2003_13.tif") 
-NDVI_2003_14<-raster("NDVI_2003_14.tif") 
-NDVI_2003_15<-raster("NDVI_2003_15.tif") 
-NDVI_2003_16<-raster("NDVI_2003_16.tif") 
-NDVI_2003_17<-raster("NDVI_2003_17.tif") 
-NDVI_2003_18<-raster("NDVI_2003_18.tif") 
+NDVI_2003_07<-raster("2003_NDVI/NDVI_2003_07.tif") 
+NDVI_2003_08<-raster("2003_NDVI/NDVI_2003_08.tif") 
+NDVI_2003_09<-raster("2003_NDVI/NDVI_2003_09.tif") 
+NDVI_2003_10<-raster("2003_NDVI/NDVI_2003_10.tif") 
+NDVI_2003_11<-raster("2003_NDVI/NDVI_2003_11.tif") 
+NDVI_2003_12<-raster("2003_NDVI/NDVI_2003_12.tif") 
+NDVI_2003_13<-raster("2003_NDVI/NDVI_2003_13.tif") 
+NDVI_2003_14<-raster("2003_NDVI/NDVI_2003_14.tif") 
+NDVI_2003_15<-raster("2003_NDVI/NDVI_2003_15.tif") 
+NDVI_2003_16<-raster("2003_NDVI/NDVI_2003_16.tif") 
+NDVI_2003_17<-raster("2003_NDVI/NDVI_2003_17.tif") 
+NDVI_2003_18<-raster("2003_NDVI/NDVI_2003_18.tif") 
 
 
 
 # mask raster stack of NDVI tiles
-NDVIstk <- stack(NDVI_2003_07, NDVI_2003_08, NDVI_2003_09, NDVI_2003_10, NDVI_2003_11, NDVI_2003_12, NDVI_2003_13, NDVI_2003_14,
-	      NDVI_2003_15, NDVI_2003_16, NDVI_2003_17, NDVI_2003_18)
+NDVIstk <- stack(NDVI_2003_07, NDVI_2003_08, NDVI_2003_09, 
+                 NDVI_2003_10, NDVI_2003_11, NDVI_2003_12, 
+                 NDVI_2003_13, NDVI_2003_14, NDVI_2003_15, 
+                 NDVI_2003_16, NDVI_2003_17, NDVI_2003_18)
 
 plot(NDVIstk)
 
@@ -326,12 +344,13 @@ plot(NDVIstk)
 # examine CRS of raster files 
 NDVIstk@crs@projargs
 
-# resample NDVI stack to extent and resolution and projection of other layers
-NDVIstk <- projectRaster(NDVIstk, mask.raster)
-## note this takes ~ 10 minutes
-
 # average over stacked NDVI tiles (note this takes ~ 1 minutes)
 meanNDVI <- mean(NDVIstk, na.rm=T)
+
+# # resample mean NDVI to extent and resolution and projection of other layers
+meanNDVI <- projectRaster(meanNDVI, mask.raster)
+# ## note this takes a while
+
 
 # get values for meanNDVI
 meanNDVI@data@values <- getValues(meanNDVI)
@@ -360,7 +379,7 @@ head(ssf_data6@data)
 # look at histogram of mean NDVI values
 hist(ssf_data6@data$meanNDVI)
 		  
-###########################################################
+## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## 
 # Extract NDVI values for time-dependent	
 
 # split data by NDVI_ID
@@ -380,7 +399,7 @@ for(i in 1:length(temp_data)){
 # okay now row bind list and create variable
 temp <- as.vector(as.data.frame(rbindlist(timeNDVI)))
 ssf_data6@data <- cbind(ssf_data6@data,temp[,1])
-names(ssf_data6@data)[18] <- "timeNDVI"
+names(ssf_data6@data)[17] <- "timeNDVI"
 
 # change ssf_data6 to ssf_data
 ssf_data <- ssf_data6
@@ -409,7 +428,8 @@ ssf_data@data$landcover.cat = ifelse(ssf_data@data$landcover == 0, "NA",
 table(ssf_data$landcover.cat, ssf_data$used)
 head(ssf_data)
 
-##################################################################################################################################
+
+## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## 
 
 # create regular data frame with data
 ssf_data <- data.frame(ssf_data@data)
@@ -437,49 +457,66 @@ ssf_data <- ssf_data[indexes.to.keep, ]
 # check that NA's are removed from landcover
 length(which(is.na(ssf_data$landcover.cat)==T))
 
-####################################################################################################################################
-################################################################################################################
-#### Objective 4.0 FIT step selection function Clogit model with Dynamic NDVI
+
+## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## 
+#### Objective 4.0 FIT step selection function Clogit model with Dynamic NDVI ####
 
 ## first make sure we understand the stratum field
 head(table(ssf_data$stratum, ssf_data$used))
 
-### So, there are 5 matched case availabile locations for each 1 used location. It is this stratum that distinguishes clogit from logistic regression. 
+### So, there are 5 matched case availabile locations for 
+# each 1 used location. It is this stratum that distinguishes 
+# clogit from logistic regression. 
 
 ## start with univariate model for mean NDVI
-m.elk.meanNDVI <- clogit(used ~ meanNDVI + strata(stratum), data = ssf_data)
+m.elk.meanNDVI <- clogit(used ~ meanNDVI + strata(stratum), 
+                         data = ssf_data)
 summary(m.elk.meanNDVI)	   
 
 #### Compare to naive logistic regression model ignoring structure
-elk.meanNDVI <- glm(used ~ meanNDVI, data = ssf_data, family = binomial(logit))
+elk.meanNDVI <- glm(used ~ meanNDVI, data = ssf_data, 
+                    family = binomial(logit))
 summary(elk.meanNDVI)	
 
-## so elk do not select for NDVI all summer long, but show 'more' selection at step scale. Next compare to time-varying NDVI
+## so elk do not select for NDVI all summer long, but 
+# show 'more' selection at step scale. Next compare to 
+# time-varying NDVI
 
 ## start with univariate model for time-varying NDVI
-m.elk.timeNDVI <- clogit(used ~ timeNDVI + strata(stratum), data = ssf_data)
+m.elk.timeNDVI <- clogit(used ~ timeNDVI + strata(stratum), 
+                         data = ssf_data)
 summary(m.elk.timeNDVI)	   
 
 #### Compare to naive logistic regression model ignoring structure
-elk.timeNDVI <- glm(used ~ timeNDVI, data = ssf_data, family = binomial(logit))
+elk.timeNDVI <- glm(used ~ timeNDVI, data = ssf_data, 
+                    family = binomial(logit))
 summary(elk.timeNDVI)	
 
-## Whereas, with time-varying NDVI, elk show the strongest avoidance of high NDVI at the step scale, and about half as strong avboidance of NDVI at the naive logit, unconditioned scale. 
+## Whereas, with time-varying NDVI, elk show the strongest 
+# avoidance of high NDVI at the step scale, and about half 
+# as strong avboidance of NDVI at the naive logit, unconditioned 
+# scale. 
 
-ssf_data$pred.m.elk.timeNDVI <- predict(m.elk.timeNDVI, type="expected")
+ssf_data$pred.m.elk.timeNDVI <- predict(m.elk.timeNDVI, 
+                                        type="expected")
 hist(ssf_data$pred.m.elk.timeNDVI)
 
-ssf_data$pred.elk.timeNDVI <- predict(elk.timeNDVI, type="response")
+ssf_data$pred.elk.timeNDVI <- predict(elk.timeNDVI, 
+                                      type="response")
 hist(ssf_data$pred.elk.timeNDVI)
 
 plot(ssf_data$pred.m.elk.timeNDVI, ssf_data$pred.elk.timeNDVI)
-abline(lm(ssf_data$pred.m.elk.timeNDVI~ ssf_data$pred.elk.timeNDVI), col = "red")
+abline(lm(ssf_data$pred.m.elk.timeNDVI~ ssf_data$pred.elk.timeNDVI), 
+       col = "red")
 cor(ssf_data$pred.m.elk.timeNDVI, ssf_data$pred.elk.timeNDVI)
 
-### so once again there is a positive but not 1:1 relationship between the conditional and naive predictions from even a simple model.
+### so once again there is a positive but not 1:1 relationship 
+# between the conditional and naive predictions from even a 
+# simple model.
 
 ### Now lets compare mean and time-varying from the clogit models. 
-ssf_data$pred.m.elk.meanNDVI <- predict(m.elk.meanNDVI, type="expected")
+ssf_data$pred.m.elk.meanNDVI <- predict(m.elk.meanNDVI, 
+                                        type="expected")
 hist(ssf_data$pred.m.elk.meanNDVI)
 
 plot(ssf_data$pred.m.elk.timeNDVI, ssf_data$pred.m.elk.meanNDVI)
@@ -491,7 +528,8 @@ cor(ssf_data$pred.m.elk.timeNDVI, ssf_data$pred.m.elk.meanNDVI)
 ### Now lets consider more meaningful models. 
 
 ### Compare clogit and naive logit for next variables. 
-#### Compare Predictions from full models with and without mean/time NDVI
+#### Compare Predictions from full models with and without 
+# mean/time NDVI
 
 mean.full  <- clogit(used ~ meanNDVI + elevation + distha + disthha + I(landcover.cat) +strata(stratum), data = ssf_data)
 summary(mean.full)
@@ -504,21 +542,25 @@ summary(time.full)
 ssf_data$mean.full <- predict(mean.full, type="expected")
 ssf_data$time.full <- predict(time.full, type="expected")
 
-plot(ssf_data$mean.full, ssf_data$time.full)
-abline(lm(ssf_data$mean.full~ ssf_data$time.full), col="red")
+par(mar=c(2.5,2.5,2.5,2.5))
+plot(ssf_data$mean.full ~ ssf_data$time.full)
+abline(lm(ssf_data$time.full~ ssf_data$mean.full), col="red")
 cor(ssf_data$mean.full, ssf_data$time.full)
+#~# i'm not convinced the above keeps X and Y correct
 
 #### plotting predictions
 
-ggplot(ssf_data, aes(x=timeNDVI, y = time.full)) + stat_smooth(method="glm", method.args = list(family="binomial"))
-ggplot(ssf_data, aes(x=meanNDVI, y = mean.full)) + stat_smooth(method="glm", method.args = list(family="binomial"))
+ggplot(ssf_data, aes(x=timeNDVI, y = time.full)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"))
+ggplot(ssf_data, aes(x=meanNDVI, y = mean.full)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"))
 
 #### MOdel Selection for cLogit Models with dynamic variables
 
 AIC(mean.full, time.full, m.elk.timeNDVI, m.elk.meanNDVI)
 ## Time-varying NDVI always outperforms. 
 
-####### Objective 5.0 Matched-case control over multiple individual - Mixed-effects Clogit
+####### Objective 5.0 Matched-case control over multiple individual - Mixed-effects Clogit ####
 
 library(mclogit)
 head(ssf_data)
@@ -541,18 +583,31 @@ table(ssf_data$stratum2)
 table(ssf_data$stratum)
 
 
-elk.timeNDVI.mclogit <- mclogit(cbind(used, stratum2) ~meanNDVI, random ~1|elkid, data=ssf_data)
+elk.timeNDVI.mclogit <- mclogit(cbind(used, stratum2) ~meanNDVI, 
+                                random =~1|elkid, data=ssf_data)
+#~# to be continued...
+#~# error: insufficient residual variance
+#~# works without the random effect
 summary(elk.timeNDVI.mclogit)
+
+# test <- ssf_data
+# test$elkid <- as.factor(test$elkid)
+# elk.timeNDVI.mclogit <- mclogit(cbind(used, stratum2) ~meanNDVI, 
+#                                 random =~1|elkid, data=test)
 
 test <- mclogit(cbind(used, stratum2) ~meanNDVI, data=ssf_data)
 summary(test)
+
+#~# time-varying covs help explain rsc selxn with step selxn especially
 
 
 
 
 library(coxme)
-#make faketime variable to trick cox proportional hazards model that time is irrelevant in your conditional logistic model
-ssf_data$faketime <- ifelse(ssf_data$used == 0, 2, 1)   #2 for control, 1 for case
+#make faketime variable to trick cox proportional hazards model 
+# that time is irrelevant in your conditional logistic model
+ssf_data$faketime <- ifelse(ssf_data$used == 0, 2, 1) #2 for control, 1 for case
 table(ssf_data$faketime, ssf_data$used)
 
-test2 <- coxme(Surv(faketime,used)~ timeNDVI + (1|elkid) + strata(stratum2), ties = "efron",data=ssf_data)
+test2 <- coxme(Surv(faketime,used)~ timeNDVI + (1|elkid) + 
+                 strata(stratum2), ties = "efron",data=ssf_data)
