@@ -136,8 +136,8 @@ plot(sp14, add=T)
 
 
 ## relationship bt nlocs and DE ##
-plot(UseIntensity ~ DE, data=locsnute.250)
-ggplot(locsnute.250, aes(x=DE, y=UseIntensity)) +
+plot(nLocs ~ DE, data=locsnute.250)
+ggplot(locsnute.250, aes(x=DE, y=nLocs)) +
   stat_smooth(method = glm) +
   geom_point()
 # gross
@@ -146,7 +146,7 @@ ggplot(locsnute.250, aes(x=DE, y=nLocs)) +
   geom_point()
 
 
-## freq distn of per cap nute ##
+## freq distn of per cap nute - use-intensity ##
 test <- locsnute.250 %>%
   mutate(pcDE = DE/UseIntensity,
          pcBM = Biomass/UseIntensity,
@@ -163,7 +163,15 @@ testmod <- glm(nLocs ~ pcGDM,
 summary(testmod)
 
 
-
+## freq distn of per cap nute - nlocs ##
+test <- locsnute.250 %>%
+  mutate(pcDE = DE/nLocs,
+         pcBM = Biomass/nLocs,
+         pcGDM = GDM/nLocs)
+par(mfrow=c(3,1))
+hist(test$pcDE)
+hist(test$pcBM)
+hist(test$pcGDM)
 
 
 
