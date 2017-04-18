@@ -667,6 +667,19 @@ ppl <- ggplot(locsnute.no0, aes(x = DE, y = UseIntensity)) +
 grid.arrange(pp, ppl)
 
 
+# Useintensity by GDM10, all popn and ea migstatus #
+a <- ggplot(uidat, aes(x = GDM10, y = UseIntensity)) +
+  stat_smooth(method="loess")
+b <- ggplot(uidat, aes(x = GDM10, y = ResUI)) +
+  stat_smooth(method="loess")
+c <- ggplot(uidat, aes(x = GDM10, y = IntUI)) +
+  stat_smooth(method="loess")
+d  <- ggplot(uidat, aes(x = GDM10, y = MigUI)) +
+  stat_smooth(method="loess")
+grid.arrange(a,b,c,d, nrow=2)
+
+
+
 #### model comparison attempts ####
 
 ## quasipoisson vs negbin ##

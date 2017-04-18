@@ -31,6 +31,8 @@ rawde14 <- raster("../../Vegetation/DE2014.tif")
 rawde15 <- raster("../../Vegetation/DE2015.tif")
 rawhbm14 <- raster("../../Vegetation/gherb2014.tif")
 rawhbm15 <- raster("../../Vegetation/gherb2015.tif")
+rawgdm14 <- raster("GDMherb2014.tif")
+rawgdm15 <- raster("GDMherb2015.tif")
 migstatus <- read.csv("../../Nutrition/migstatus.csv")
 mig <- dplyr::select(migstatus, c(IndivYr, MigStatus))
 
@@ -42,8 +44,7 @@ latlong <- CRS("+init=epsg:4326") # WGS84 projection
 #### DATA PREP ####
 
 ## GDM prelim estimation ##
-gdm14 <- rawde14*rawhbm14
-gdm15 <- rawde15*rawhbm15
+
 
 ## format dates and times; add IndivYr and MigStatus ##
 locs <- rawlocs
@@ -139,8 +140,9 @@ de14.250 <- resample(rawde14, refraster, method='bilinear')
 de15.250 <- resample(rawde15, refraster, method='bilinear')
 hbm14.250 <- resample(rawhbm14, refraster, method='bilinear')
 hbm15.250 <- resample(rawhbm15, refraster, method='bilinear')
-gdm14.250 <- resample(gdm14, refraster, method='bilinear')
-gdm15.250 <- resample(gdm15, refraster, method='bilinear')
+gdm14.250 <- resample(rawgdm14, refraster, method='bilinear')
+gdm15.250 <- resample(rawgdm15, refraster, method='bilinear')
+
 
 
 ## combine nlocs with underlying veg data ##
@@ -155,9 +157,12 @@ locs14 <- locs14 %>%
          nMig = layer.4,
          DE = DE2014,
          Biomass = gherb2014,
-         GDM = layer.5) %>%
-  mutate(Year = "2014") 
+         GDM = GDMherb2014) %>%
+  mutate(Year = "2014")
 locs14[is.na(locs14)] <- 0
+locs14$tRes <- sum(locs14$nRes)
+locs14$tInt <- sum(locs14$nInt)
+locs14$tMig <- sum(locs14$nMig)
 locs14$UseIntensity <- locs14$nLocs/sum(locs14$nLocs)
 locs14$Total <- sum(locs14$nLocs)
 
@@ -171,9 +176,15 @@ locs15 <- locs15 %>%
          nMig = layer.4,
          DE = DE2015,
          Biomass = gherb2015,
-         GDM = layer.5) %>%
-  mutate(Year = "2015") 
+         GDM = GDMherb2015) %>%
+  mutate(Year = "2015",
+         tRes = sum(nRes),
+         tInt = sum(nInt),
+         tMig = sum(nMig)) 
 locs15[is.na(locs15)] <- 0
+locs15$tRes <- sum(locs15$nRes)
+locs15$tInt <- sum(locs15$nInt)
+locs15$tMig <- sum(locs15$nMig)
 locs15$UseIntensity <- locs15$nLocs/sum(locs15$nLocs)
 locs15$Total <- sum(locs15$nLocs)
 locsnute <- bind_rows(locs14, locs15)
@@ -183,14 +194,13 @@ locsnute.no0 <- filter(locsnute, nLocs > 0)
 # UseIntensity and per cap nute per mig behav
 # scaled GDM (10-g units now)
 uidat <- locsnute.no0 %>%
-  mutate(ResUI = nRes/Total,
-         IntUI = nInt/Total,
-         MigUI = nMig/Total,
-         NutePC = UseIntensity*GDM,
-         ResPC = nRes/Total*GDM,
-         IntPC = nInt/Total*GDM,
-         MigPC = nMig/Total*GDM,
-         GDM10 = GDM/10)
+  mutate(ResUI = nRes/tRes,
+         IntUI = nInt/tInt,
+         MigUI = nMig/tMig,
+         GDM10 = GDM/10,
+         ResGDM10 = nRes/nLocs*GDM10,
+         IntGDM10 = nInt/nLocs*GDM10,
+         MigGDM10 = nMig/nLocs*GDM10)
 
 
 #### VISUALS - DATA AND RELATIONSHIPS ####
@@ -199,20 +209,27 @@ uidat <- locsnute.no0 %>%
 hist(locsnute.no0$UseIntensity, breaks = 100)
 
 # use-intensity ~ available nutrition
-plot(UseIntensity ~ GDM, data = locsnute.no0)
-
-# Useintensity by GDM, all popn and ea migstatus #
-a <- ggplot(locsnute.no0, aes(x = GDM, y = UseIntensity)) +
-  stat_smooth(method="loess")
-b <- ggplot(uidat, aes(x = GDM, y = ResUI)) +
-  stat_smooth(method="loess")
-c <- ggplot(uidat, aes(x = GDM, y = IntUI)) +
-  stat_smooth(method="loess")
-d  <- ggplot(uidat, aes(x = GDM, y = MigUI)) +
-  stat_smooth(method="loess")
-grid.arrange(a,b,c,d, nrow=2)
+plot(UseIntensity ~ GDM10, data = uidat)
 
 
+# trying the above all on one plot
+ggplot(uidat, aes(GDM10)) +
+  stat_smooth(aes(y = ResUI, colour = "ResUI"), method = "loess") +
+  stat_smooth(aes(y = IntUI, colour = "IntUI"), method = "loess") +
+  stat_smooth(aes(y = MigUI, colour = "MigUI"), method = "loess") +
+  stat_smooth(aes(y = UseIntensity, colour = "UIpopn"), method = "loess") 
+# well shit, that was easy. thanks hadley.
+
+
+# per capita nutrition per migstatus
+q <- ggplot(uidat, aes(ResGDM10)) +
+  geom_histogram()
+w <- ggplot(uidat, aes(IntGDM10)) +
+  geom_histogram()
+e <- ggplot(uidat, aes(MigGDM10)) +
+  geom_histogram()
+grid.arrange(q,w,e)
+  
 
 #### USE/NUTRITION MODELS ####
 
@@ -220,26 +237,26 @@ grid.arrange(a,b,c,d, nrow=2)
 par(mfrow=c(2,2))
 
     # poisson
-    mp <- glm(nLocs ~ offset(log(Total)) + GDM,
-                family = poisson, data = locsnute.no0)
+    mp <- glm(nLocs ~ offset(log(Total)) + GDM10,
+                family = poisson, data = uidat)
     summary(mp)
     plot(mp)
     
     # quasipoisson
-    mqp <- glm(nLocs ~ offset(log(Total)) + GDM,
-                family = quasipoisson, data = locsnute.no0)
+    mqp <- glm(nLocs ~ offset(log(Total)) + GDM10,
+                family = quasipoisson, data = uidat)
     summary(mqp)
     plot(mqp) # essentially same as above
     
     # zero-truncated poisson
-    mzp <- vglm(nLocs ~ offset(log(Total)) + GDM,
-                family = pospoisson(), data = locsnute.no0)
+    mzp <- vglm(nLocs ~ offset(log(Total)) + GDM10,
+                family = pospoisson(), data = uidat)
     summary(mzp)
     plot(mzp) #can't
     
     # negative binomial
-    mnb <- glm.nb(nLocs ~ offset(log(Total)) + GDM,
-                data = locsnute.no0, link = log)
+    mnb <- glm.nb(nLocs ~ offset(log(Total)) + GDM10,
+                data = uidat, link = log)
     summary(mnb)
     plot(mnb) #very similar to mp, mqp
     # assumption: dispersion parameter that changes
@@ -247,8 +264,8 @@ par(mfrow=c(2,2))
       # so poisson is a type of negbin model
     
     # zero-truncated negative binomial
-    mznb <- vglm(nLocs ~ offset(log(Total)) + GDM,
-                data = locsnute.no0, 
+    mznb <- vglm(nLocs ~ offset(log(Total)) + GDM10,
+                data = uidat, 
                 family = posnegbinomial())
     warnings()
     summary(mznb)
@@ -274,7 +291,7 @@ summary(m1)
 estm1 <- cbind(Estimate = coef(m1), confint(m1))
 estm1 # model coefficients
 exp(estm1) # estimated use-intensity ratios
-  # interp: ~7% increase in use-intensity rate for
+  # interp: ~21% increase in use-intensity rate for
   # every 10-g increase in GDM
 
 ## compare fit of quadratic and cubic terms
@@ -289,12 +306,19 @@ BIC(m1, m2, m3)
 
 
 #3. model separately for diff migbehaviors
+migdat <- uidat %>%
+  
+mr1 <- glm.nb(nRes ~ offset(log(Total)) + GDM10 + nLocs,
+              data = uidat, link = log)
+summary(mr1)
+est.mr1 <- cbind(Estimate = coef(mr1), confint(mr1))
+exp(est.mr1)
 
 
 
 #### VISUALS - MODEL PREDICTIONS ####
 
-pp <- ggplot(locsnute.no0, aes(x = DE, y = UseIntensity)) +
+pp <- ggplot(uidat, aes(x = GDM10, y = UseIntensity)) +
   stat_smooth(method="glm",
               se = TRUE,
               formula = y ~ poly(x, 3, raw = TRUE)) +
