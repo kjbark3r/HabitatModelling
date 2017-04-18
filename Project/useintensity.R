@@ -16,6 +16,8 @@ ifelse(file.exists(wd_workcomp), setwd(wd_workcomp), setwd(wd_laptop))
 rm(wd_workcomp, wd_laptop)
 
 ## packages ##
+library(VGAM) #vglm(), zero-truncated poisson/negbin
+library(MASS) #glm.nb(), negbin
 library(raster)
 library(ggplot2)
 library(gridExtra)
@@ -29,6 +31,7 @@ rawde15 <- raster("../../Vegetation/DE2015.tif")
 rawhbm14 <- raster("../../Vegetation/gherb2014.tif")
 rawhbm15 <- raster("../../Vegetation/gherb2015.tif")
 migstatus <- read.csv("../../Nutrition/migstatus.csv")
+mig <- dplyr::select(migstatus, c(IndivYr, MigStatus))
 
 ## projection definition ##
 latlong <- CRS("+init=epsg:4326") # WGS84 projection
@@ -51,6 +54,7 @@ locs$IndivYr <- ifelse(locs$Date < "2015-01-01",
                              "-14", sep=""),
                        paste(locs$AnimalID, 
                              "-15", sep=""))  
+locs <- left_join(locs, mig, by = "IndivYr")
 
 ## rm non-foraging times; subset 1 rndm loc/day; spatialize ##
 l14 <- locs %>%
@@ -80,17 +84,61 @@ l15 <- locs %>%
 
 
 ## XY coordinates from 2014 and 2015 data ##   
-coords14 <- data.frame(sp14@coords)
-coords15 <- data.frame(sp15@coords)
 
+coords14 <- data.frame(sp14@coords)
+r14 <- subset(l14, MigStatus == "Resident")
+    rxy14 <- data.frame("x" = r14$Long, "y" = r14$Lat)
+    rll14 <- SpatialPointsDataFrame(rxy14, r14,proj4string = latlong)
+    rsp14 <- spTransform(rll14, rawde14@crs)
+    rcoords14 <- data.frame(rsp14@coords)
+  
+i14 <- subset(l14, MigStatus == "Intermediate")
+    ixy14 <- data.frame("x" = i14$Long, "y" = i14$Lat)
+    ill14 <- SpatialPointsDataFrame(ixy14, i14,proj4string = latlong)
+    isp14 <- spTransform(ill14, rawde14@crs)
+    icoords14 <- data.frame(isp14@coords)
+
+m14 <- subset(l14, MigStatus == "Migrant")
+    mxy14 <- data.frame("x" = m14$Long, "y" = m14$Lat)
+    mll14 <- SpatialPointsDataFrame(mxy14, m14,proj4string = latlong)
+    msp14 <- spTransform(mll14, rawde14@crs)
+    mcoords14 <- data.frame(msp14@coords)
+
+coords15 <- data.frame(sp15@coords)
+r15 <- subset(l15, MigStatus == "Resident")
+    rxy15 <- data.frame("x" = r15$Long, "y" = r15$Lat)
+    rll15 <- SpatialPointsDataFrame(rxy15, r15,proj4string = latlong)
+    rsp15 <- spTransform(rll15, rawde15@crs)
+    rcoords15 <- data.frame(rsp15@coords)
+  
+i15 <- subset(l15, MigStatus == "Intermediate")
+    ixy15 <- data.frame("x" = i15$Long, "y" = i15$Lat)
+    ill15 <- SpatialPointsDataFrame(ixy15, i15,proj4string = latlong)
+    isp15 <- spTransform(ill15, rawde15@crs)
+    icoords15 <- data.frame(isp15@coords)
+
+m15 <- subset(l15, MigStatus == "Migrant")
+    mxy15 <- data.frame("x" = m15$Long, "y" = m15$Lat)
+    mll15 <- SpatialPointsDataFrame(mxy15, m15,proj4string = latlong)
+    msp15 <- spTransform(mll15, rawde15@crs)
+    mcoords15 <- data.frame(msp15@coords)
+    
+    
 
 ## reference raster - 250m2 resolution ##
 refraster <- raster(extent(rawde14), crs = rawde14@crs,
                     res = c(250, 250))
 
+
 ## nlocs/250m2 pixel ##
-n14.250 <- rasterize(coords14, refraster, fun='count')
-n15.250 <- rasterize(coords15, refraster, fun='count')
+n14 <- rasterize(coords14, refraster, fun='count')
+rn14 <- rasterize(rcoords14, refraster, fun='count')
+in14 <- rasterize(icoords14, refraster, fun='count')
+mn14 <- rasterize(mcoords14, refraster, fun='count')
+n15 <- rasterize(coords15, refraster, fun='count')
+rn15 <- rasterize(rcoords15, refraster, fun='count')
+in15 <- rasterize(icoords15, refraster, fun='count')
+mn15 <- rasterize(mcoords15, refraster, fun='count')
 
 ## resampled nute/250m2 pixel ##
 de14.250 <- resample(rawde14, refraster, method='bilinear')
@@ -100,230 +148,162 @@ hbm15.250 <- resample(rawhbm15, refraster, method='bilinear')
 gdm14.250 <- resample(gdm14, refraster, method='bilinear')
 gdm15.250 <- resample(gdm15, refraster, method='bilinear')
 
+
 ## combine nlocs with underlying veg data ##
-brick14 <- brick(n14.250, de14.250, hbm14.250, gdm14.250)
+
+brick14 <- brick(n14, rn14, in14, mn14,
+                 de14.250, hbm14.250, gdm14.250)
 locs14 <- data.frame(getValues(brick14))
 locs14 <- locs14 %>%
   rename(nLocs = layer.1,
+         nRes = layer.2,
+         nInt = layer.3,
+         nMig = layer.4,
          DE = DE2014,
          Biomass = gherb2014,
-         GDM = layer.2) %>%
-  mutate(Year = "2014") %>%
-  filter(!is.na(nLocs))
+         GDM = layer.5) %>%
+  mutate(Year = "2014") 
+locs14[is.na(locs14)] <- 0
 locs14$UseIntensity <- locs14$nLocs/sum(locs14$nLocs)
-brick15 <- brick(n15.250, de15.250, hbm15.250, gdm15.250)
+locs14$Total <- sum(locs14$nLocs)
+
+brick15 <- brick(n15, rn15, in15, mn15,
+                 de15.250, hbm15.250, gdm15.250)
 locs15 <- data.frame(getValues(brick15))
 locs15 <- locs15 %>%
   rename(nLocs = layer.1,
+         nRes = layer.2,
+         nInt = layer.3,
+         nMig = layer.4,
          DE = DE2015,
          Biomass = gherb2015,
-         GDM = layer.2) %>%
-  mutate(Year = "2015") %>%
-  filter(!is.na(nLocs)) 
+         GDM = layer.5) %>%
+  mutate(Year = "2015") 
+locs15[is.na(locs15)] <- 0
 locs15$UseIntensity <- locs15$nLocs/sum(locs15$nLocs)
-locsnute.250 <- bind_rows(locs14, locs15)
+locs15$Total <- sum(locs15$nLocs)
+locsnute <- bind_rows(locs14, locs15)
+locsnute.no0 <- filter(locsnute, nLocs > 0)
+
+# new df incl's UseIntensity per ea mig behav
+uidat <- locsnute.no0 %>%
+  mutate(ResUI = nRes/Total,
+         IntUI = nInt/Total,
+         MigUI = nMig/Total,
+         NutePC = UseIntensity*GDM,
+         ResPC = nRes/Total*GDM,
+         IntPC = nInt/Total*GDM,
+         MigPC = nMig/Total*GDM)
 
 
-#### USE/NUTE MODEL ####
+#### VISUALS - DATA AND RELATIONSHIPS ####
 
+# Use-intensity distribution
+hist(locsnute.no0$UseIntensity, breaks = 100)
 
+# use-intensity ~ available nutrition
+plot(UseIntensity ~ GDM, data = locsnute.no0)
 
-#### VISUALS ####
-
-## DE raster with elk locs in it, 2014 ##
-plot(de14)
-plot(sp14, add=T)
-
-
-## relationship bt nlocs and DE ##
-plot(nLocs ~ DE, data=locsnute.250)
-ggplot(locsnute.250, aes(x=DE, y=nLocs)) +
-  stat_smooth(method = glm) +
-  geom_point()
-# gross
-ggplot(locsnute.250, aes(x=DE, y=nLocs)) +
-  stat_smooth(method = "auto") +
-  geom_point()
-
-
-## freq distn of per cap nute - use-intensity ##
-test <- locsnute.250 %>%
-  mutate(pcDE = DE/UseIntensity,
-         pcBM = Biomass/UseIntensity,
-         pcGDM = GDM/UseIntensity)
-par(mfrow=c(3,1))
-hist(test$pcDE)
-hist(test$pcBM)
-hist(test$pcGDM)
-
-## poisson requires counts; can't do intensity
-testmod <- glm(nLocs ~ pcGDM,
-  family = poisson, 
-  data = test)
-summary(testmod)
-
-
-## freq distn of per cap nute - nlocs ##
-test <- locsnute.250 %>%
-  mutate(pcDE = DE/nLocs,
-         pcBM = Biomass/nLocs,
-         pcGDM = GDM/nLocs)
-par(mfrow=c(3,1))
-hist(test$pcDE)
-hist(test$pcBM)
-hist(test$pcGDM)
+# Useintensity by GDM, all popn and ea migstatus #
+a <- ggplot(locsnute.no0, aes(x = GDM, y = UseIntensity)) +
+  stat_smooth(method="loess")
+b <- ggplot(uidat, aes(x = GDM, y = ResUI)) +
+  stat_smooth(method="loess")
+c <- ggplot(uidat, aes(x = GDM, y = IntUI)) +
+  stat_smooth(method="loess")
+d  <- ggplot(uidat, aes(x = GDM, y = MigUI)) +
+  stat_smooth(method="loess")
+grid.arrange(a,b,c,d, nrow=2)
 
 
 
+#### USE/NUTRITION MODELS ####
 
-#### CUTS AND MISC ####
+#1. determine best type of model
+par(mfrow=c(2,2))
 
-
-
-## VERIFY SUBSETTING WORKED AS EXPECTED ##
-
-length(unique(l14$IndivYr))*length(unique(l14$Date))
-length(unique(l15$IndivYr))*length(unique(l15$Date))
- #14 is right but 15 is off by 59, huh
- #im ignoring it bc this is just a class project
-
-
-
-## COUNT NUMBER OF POINTS PER PIXEL ##
-
-library(adehabitatMA)
-pixels <- as(de14, 'SpatialPixels')
-test14 <- count.points(sp14, pixels)
-plot(pixels)
-plot(sp14, color = "blue")
-# error w[[1]] : no [[ method for object without attributes
-
-a <- table(cellFromXY(de14, sp14))
-
-test <- rasterize(sp14, de14, fun='count')
-plot(test)
-# returns brick with NA values
-# it's trying to count occurrence of each column i think
-
-
-# below (stolen) code works
-r <- raster(ncols=36, nrows=18)
-n <- 1000
-x <- runif(n) * 360 - 180
-y <- runif(n) * 180 - 90
-xy <- cbind(x, y)
-# prensence/absensce (NA) (is there a point or not?)
-r1 <- rasterize(xy, r, field=1)
-# how many points?
-r2 <- rasterize(xy, r, fun=function(x,...)length(x))
-r3 <- rasterize(xy, r, fun='count')
-plot(r2)
-plot(r3)
-# those 2 functions do the same thing, good
+    # poisson
+    mp <- glm(nLocs ~ offset(log(Total)) + GDM,
+                family = poisson, data = locsnute.no0)
+    summary(mp)
+    plot(mp)
+    
+    # quasipoisson
+    mqp <- glm(nLocs ~ offset(log(Total)) + GDM,
+                family = quasipoisson, data = locsnute.no0)
+    summary(mqp)
+    plot(mqp) # essentially same as above
+    
+    # zero-truncated poisson
+    mzp <- vglm(nLocs ~ offset(log(Total)) + GDM,
+                family = pospoisson(), data = locsnute.no0)
+    summary(mzp)
+    plot(mzp) #can't
+    
+    # negative binomial
+    mnb <- glm.nb(nLocs ~ offset(log(Total)) + GDM,
+                data = locsnute.no0, link = log)
+    summary(mnb)
+    plot(mnb) #very similar to mp, mqp
+    # assumption: dispersion parameter that changes
+    # whereas in poisson it is held constant
+      # so poisson is a type of negbin model
+    
+    # zero-truncated negative binomial
+    mznb <- vglm(nLocs ~ offset(log(Total)) + GDM,
+                data = locsnute.no0, 
+                family = posnegbinomial())
+    warnings()
+    summary(mznb)
 
 
-testlocs <- data.frame(sp14@data$Long, sp14@data$Lat)
-test <- rasterize(testlocs, de14, fun='count') 
-# still NAs but closer... it's trying to plot now
+#### assessing relative model fit ####
 
-testlocs <- data.frame(sp14@data$Long, sp14@data$Lat)
-x2 <- sp14@data$Long
-test <- rasterize(testlocs, de14, 
-                  fun=function(x2,...)length(x2)) 
-# stilllllll NAs...
-# maybe i need a blank raster for this
-
-testrast <- raster(extent(de14), crs = de14@crs)
-test <- rasterize(sp14, testrast, fun='count')  
-# nope still brick
-
-testrast <- raster(extent(de14), crs = de14@crs)
-test <- rasterize(testlocs, testrast, fun='count')
-plot(test)
-unique(test@data@values)
-# fuckkkkkkk
-plot(test); plot(testlocs, add=T)
-# ohhhh duh, using latlong from @data slot
-# rather than stateplace from @coords
-# smart, kristin
-
-testlocs <- data.frame(sp14@coords)
-test <- rasterize(testlocs, de14, fun='count')
-plot(test)
-unique(test@data@values)
-length(which(!is.na(test@data@values)))
-# seems right, but plot doesn't show any data
-writeRaster(test, "nlocs-test", format="GTiff")
-# ok looks correct in arcmap, just hard to see data
-# here because pixels are so small
-
-testlocs <- data.frame(sp14@coords)
-testrast <- raster(extent(de14), crs = de14@crs)
-test2 <- rasterize(testlocs, testrast, fun='count')
-plot(test2) 
-# eeeeeee
-unique(test2@data@values)
-length(unique(test2@data@values))
-summary(test2@data@values)
-# now the plot does show data
-# but pixels are way too big
-# next step: choose a resolution between this and above
-  # which will require resampling DE raster
-
-coords14 <- data.frame(sp14@coords) # make df of just XYs
-resraster <- raster(extent(de14), crs = de14@crs)
-res(resraster) <- c(100, 100) # reference raster
-de14 <- resample(rawde14, resraster, method='bilinear')
-plot(de14)
-test <- rasterize(coords14, de14, fun='count')
-plot(test)
-unique(test@data@values)
-summary(test@data@values)
-writeRaster(test, "nlocs-test2", format="GTiff")
-# seems better but may still need a little coarser
-
-resraster2 <- raster(extent(de14), crs = de14@crs)
-res(resraster2) <- c(500, 500)
-de14 <- resample(rawde14, resraster2, method='bilinear')
-plot(de14)
-test <- rasterize(coords14, de14, fun='count')
-plot(test)
-unique(test@data@values)
-summary(test@data@values)
-writeRaster(test, "nlocs-test3", format="GTiff")
-# wayyyyyyy too coarse; covers shitloads of DE pixels
-
-resraster3 <- raster(extent(de14), crs = de14@crs)
-res(resraster3) <- c(250, 250) #justify w ndvi, haha
-de14 <- resample(rawde14, resraster3, method='bilinear')
-plot(de14)
-test <- rasterize(coords14, de14, fun='count')
-plot(test)
-unique(test@data@values)
-summary(test@data@values)
-writeRaster(test, "nlocs-test4", format="GTiff")
-
-## biomass ##
-bm14 <- resample(rawhbm14, refraster, method='bilinear')
-nbm14 <- rasterize(coords14, bm14, fun='count')
-bm15 <- resample(rawhbm15, refraster, method='bilinear')
-nbm15 <- rasterize(coords15, bm15, fun='count')
-# didn't need to do this; it gives exact same info
-# in fact could've just used your refraster to count nlocs
-# now need to combine nlocs with assoc'd nute vals
-
-## digestible energy ##
-de14 <- resample(rawde14, refraster, method='bilinear')
-nde14 <- rasterize(coords14, de14, fun='count')
-de15 <- resample(rawde15, refraster, method='bilinear')
-nde15 <- rasterize(coords15, de15, fun='count')
+## poisson vs negbin ##
+# likelihood ratio test #
+pchisq(2 * (logLik(mnb) - logLik(mp)), df = 1, 
+       lower.tail = FALSE)
+# can do this bc poisson is nested in negbin
+# very small p-value suggests negbin is better
+# based on this i'm throwing out all the p stuff
+# and based on mznb warnings i'm throwing that out 
+# so, negbin ftw!!
 
 
-## creating df of nlocs and nute ##
-test <- data.frame(getValues(locsnute))
-test <- test %>%
-  rename(nLocs14 = layer.1,
-         nLocs15 = layer.2) %>%
- filter(!is.na(nLocs14))
-# ah right, nas in 2014 not same as in 2015
-# make separate dfs to retain as much info as possible
+#2. determine whether relationship is linear
+
+
+m1 <- glm.nb(nLocs ~ offset(log(Total)) + GDM,
+            data = locsnute.no0, link = log)
+m2 <- glm.nb(nLocs ~ offset(log(Total)) + GDM + I(GDM^2),
+            data = locsnute.no0, link = log)
+m3 <- glm.nb(nLocs ~ offset(log(Total)) + GDM + I(GDM^2)  + I(GDM^3),
+            data = locsnute.no0, link = log)
+AIC(m1, m2, m3)
+BIC(m1, m2, m3)
+# cubic still comes out best even when more highly penalized
+
+
+# model estimates from top population-level model #
+estm3 <- cbind(Estimate = coef(m3), confint(m3))
+estm3
+# estimated use-intensity ratios
+exp(estm3)
+# not sure how to interpret due to cubic
+# if linear only, would interp as a 2% decrease in
+  # use-intensity rate for every unit increase in GDM
+  # bc multiplicative effect when exponentiated 
+  # (when on y scale rather tyhan ln(y) scale)
+
+
+
+
+#### VISUALS - MODEL PREDICTIONS ####
+
+pp <- ggplot(locsnute.no0, aes(x = DE, y = UseIntensity)) +
+  stat_smooth(method="glm",
+              se = TRUE,
+              formula = y ~ poly(x, 3, raw = TRUE)) +
+  geom_point(size=1)
+pp
+
