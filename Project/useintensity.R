@@ -9,22 +9,23 @@
 
 #### SETUP ####
 
-## working directory ##
+## set working directory ##
 wd_workcomp <- "C:\\Users\\kristin.barker\\Documents\\GitHub\\HabitatModelling\\Project"
 wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\GitHub\\HabitatModelling\\Project"
 ifelse(file.exists(wd_workcomp), setwd(wd_workcomp), setwd(wd_laptop))
 rm(wd_workcomp, wd_laptop)
 
-## packages ##
+## load packages ##
 library(VGAM) #vglm(), zero-truncated poisson/negbin
 library(MASS) #glm.nb(), negbin
+library(AICcmodavg) 
 library(raster)
 library(ggplot2)
 library(gridExtra)
 library(tidyr)
 library(dplyr)
 
-## raw data ##
+## read in "raw" data ##
 rawlocs <- read.csv("../../ElkDatabase/collardata-locsonly-equalsampling.csv")
 rawde14 <- raster("../../Vegetation/DE2014.tif")
 rawde15 <- raster("../../Vegetation/DE2015.tif")
@@ -33,7 +34,7 @@ rawhbm15 <- raster("../../Vegetation/gherb2015.tif")
 migstatus <- read.csv("../../Nutrition/migstatus.csv")
 mig <- dplyr::select(migstatus, c(IndivYr, MigStatus))
 
-## projection definition ##
+## define projection ##
 latlong <- CRS("+init=epsg:4326") # WGS84 projection
 
 
@@ -44,16 +45,13 @@ latlong <- CRS("+init=epsg:4326") # WGS84 projection
 gdm14 <- rawde14*rawhbm14
 gdm15 <- rawde15*rawhbm15
 
-## format dates and times; add IndivYr ##
+## format dates and times; add IndivYr and MigStatus ##
 locs <- rawlocs
 locs$Date <- as.Date(locs$Date)
-locs$Time <- as.numeric(gsub("[[:punct:]]", 
-                             "", locs$Time))
+locs$Time <- as.numeric(gsub("[[:punct:]]", "", locs$Time))
 locs$IndivYr <- ifelse(locs$Date < "2015-01-01", 
-                       paste(locs$AnimalID, 
-                             "-14", sep=""),
-                       paste(locs$AnimalID, 
-                             "-15", sep=""))  
+                       paste(locs$AnimalID, "-14", sep=""),
+                       paste(locs$AnimalID, "-15", sep=""))  
 locs <- left_join(locs, mig, by = "IndivYr")
 
 ## rm non-foraging times; subset 1 rndm loc/day; spatialize ##
@@ -82,8 +80,14 @@ l15 <- locs %>%
     
 #### COUNT NUMBER OF POINTS PER PIXEL ####
 
-
-## XY coordinates from 2014 and 2015 data ##   
+    
+## reference raster - 250m2 resolution ##
+refraster <- raster(extent(rawde14), crs = rawde14@crs,
+                    res = c(250, 250))
+ 
+       
+## XY coordinates from 2014 and 2015 data ##
+# also subset by MigStatus  #
 
 coords14 <- data.frame(sp14@coords)
 r14 <- subset(l14, MigStatus == "Resident")
@@ -91,13 +95,11 @@ r14 <- subset(l14, MigStatus == "Resident")
     rll14 <- SpatialPointsDataFrame(rxy14, r14,proj4string = latlong)
     rsp14 <- spTransform(rll14, rawde14@crs)
     rcoords14 <- data.frame(rsp14@coords)
-  
 i14 <- subset(l14, MigStatus == "Intermediate")
     ixy14 <- data.frame("x" = i14$Long, "y" = i14$Lat)
     ill14 <- SpatialPointsDataFrame(ixy14, i14,proj4string = latlong)
     isp14 <- spTransform(ill14, rawde14@crs)
     icoords14 <- data.frame(isp14@coords)
-
 m14 <- subset(l14, MigStatus == "Migrant")
     mxy14 <- data.frame("x" = m14$Long, "y" = m14$Lat)
     mll14 <- SpatialPointsDataFrame(mxy14, m14,proj4string = latlong)
@@ -110,13 +112,11 @@ r15 <- subset(l15, MigStatus == "Resident")
     rll15 <- SpatialPointsDataFrame(rxy15, r15,proj4string = latlong)
     rsp15 <- spTransform(rll15, rawde15@crs)
     rcoords15 <- data.frame(rsp15@coords)
-  
 i15 <- subset(l15, MigStatus == "Intermediate")
     ixy15 <- data.frame("x" = i15$Long, "y" = i15$Lat)
     ill15 <- SpatialPointsDataFrame(ixy15, i15,proj4string = latlong)
     isp15 <- spTransform(ill15, rawde15@crs)
     icoords15 <- data.frame(isp15@coords)
-
 m15 <- subset(l15, MigStatus == "Migrant")
     mxy15 <- data.frame("x" = m15$Long, "y" = m15$Lat)
     mll15 <- SpatialPointsDataFrame(mxy15, m15,proj4string = latlong)
@@ -124,12 +124,6 @@ m15 <- subset(l15, MigStatus == "Migrant")
     mcoords15 <- data.frame(msp15@coords)
     
     
-
-## reference raster - 250m2 resolution ##
-refraster <- raster(extent(rawde14), crs = rawde14@crs,
-                    res = c(250, 250))
-
-
 ## nlocs/250m2 pixel ##
 n14 <- rasterize(coords14, refraster, fun='count')
 rn14 <- rasterize(rcoords14, refraster, fun='count')
@@ -185,7 +179,9 @@ locs15$Total <- sum(locs15$nLocs)
 locsnute <- bind_rows(locs14, locs15)
 locsnute.no0 <- filter(locsnute, nLocs > 0)
 
-# new df incl's UseIntensity per ea mig behav
+# updated df w 
+# UseIntensity and per cap nute per mig behav
+# scaled GDM (10-g units now)
 uidat <- locsnute.no0 %>%
   mutate(ResUI = nRes/Total,
          IntUI = nInt/Total,
@@ -193,7 +189,8 @@ uidat <- locsnute.no0 %>%
          NutePC = UseIntensity*GDM,
          ResPC = nRes/Total*GDM,
          IntPC = nInt/Total*GDM,
-         MigPC = nMig/Total*GDM)
+         MigPC = nMig/Total*GDM,
+         GDM10 = GDM/10)
 
 
 #### VISUALS - DATA AND RELATIONSHIPS ####
@@ -271,30 +268,27 @@ pchisq(2 * (logLik(mnb) - logLik(mp)), df = 1,
 
 
 #2. determine whether relationship is linear
+m1 <- glm.nb(nLocs ~ offset(log(Total)) + GDM10,
+            data = uidat, link = log)
+summary(m1)
+estm1 <- cbind(Estimate = coef(m1), confint(m1))
+estm1 # model coefficients
+exp(estm1) # estimated use-intensity ratios
+  # interp: ~7% increase in use-intensity rate for
+  # every 10-g increase in GDM
 
-
-m1 <- glm.nb(nLocs ~ offset(log(Total)) + GDM,
-            data = locsnute.no0, link = log)
-m2 <- glm.nb(nLocs ~ offset(log(Total)) + GDM + I(GDM^2),
-            data = locsnute.no0, link = log)
-m3 <- glm.nb(nLocs ~ offset(log(Total)) + GDM + I(GDM^2)  + I(GDM^3),
-            data = locsnute.no0, link = log)
+## compare fit of quadratic and cubic terms
+m2 <- glm.nb(nLocs ~ offset(log(Total)) + GDM10 + I(GDM10^2),
+            data = uidat, link = log)
+m3 <- glm.nb(nLocs ~ offset(log(Total)) + GDM10 + I(GDM10^2)  + I(GDM10^3),
+            data = uidat, link = log)
 AIC(m1, m2, m3)
 BIC(m1, m2, m3)
-# cubic still comes out best even when more highly penalized
+# cubic comes out best, even when more highly penalized
 
 
-# model estimates from top population-level model #
-estm3 <- cbind(Estimate = coef(m3), confint(m3))
-estm3
-# estimated use-intensity ratios
-exp(estm3)
-# not sure how to interpret due to cubic
-# if linear only, would interp as a 2% decrease in
-  # use-intensity rate for every unit increase in GDM
-  # bc multiplicative effect when exponentiated 
-  # (when on y scale rather tyhan ln(y) scale)
 
+#3. model separately for diff migbehaviors
 
 
 
