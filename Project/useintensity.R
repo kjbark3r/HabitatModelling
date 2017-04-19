@@ -54,6 +54,7 @@ locs$IndivYr <- ifelse(locs$Date < "2015-01-01",
                        paste(locs$AnimalID, "-14", sep=""),
                        paste(locs$AnimalID, "-15", sep=""))  
 locs <- left_join(locs, mig, by = "IndivYr")
+locs <- locs[!is.na(locs["MigStatus"]),]
 
 ## rm non-foraging times; subset 1 rndm loc/day; spatialize ##
 l14 <- locs %>%
@@ -142,8 +143,8 @@ hbm14.250 <- resample(rawhbm14, refraster, method='bilinear')
 hbm15.250 <- resample(rawhbm15, refraster, method='bilinear')
 gdm14.250 <- resample(rawgdm14, refraster, method='bilinear')
 gdm15.250 <- resample(rawgdm15, refraster, method='bilinear')
-
-
+gdm14.250[gdm14.250 < 0] <- 0
+gdm15.250[gdm15.250 < 0] <- 0
 
 ## combine nlocs with underlying veg data ##
 
@@ -201,15 +202,19 @@ uidat <- locsnute.no0 %>%
          ResGDM10 = nRes/nLocs*GDM10,
          IntGDM10 = nInt/nLocs*GDM10,
          MigGDM10 = nMig/nLocs*GDM10)
-
+write.csv(uidat, file = "uidat.csv", row.names=F)
 
 #### VISUALS - DATA AND RELATIONSHIPS ####
+uidat <- read.csv("uidat.csv")
 
 # Use-intensity distribution
-hist(locsnute.no0$UseIntensity, breaks = 100)
+hist(uidat$UseIntensity, breaks = 100)
 
 # use-intensity ~ available nutrition
 plot(UseIntensity ~ GDM10, data = uidat)
+ggplot(uidat, aes(x = GDM10, y = UseIntensity)) +
+  stat_smooth(method = "loess") +
+  geom_point(size = 1)
 
 
 # trying the above all on one plot
@@ -222,14 +227,19 @@ ggplot(uidat, aes(GDM10)) +
 
 
 # per capita nutrition per migstatus
-q <- ggplot(uidat, aes(ResGDM10)) +
+uidatsub <- uidat
+uidatsub$ResGDM10 <- ifelse(uidatsub$ResGDM10 == 0, NA, uidatsub$ResGDM10)
+uidatsub$IntGDM10 <- ifelse(uidatsub$IntGDM10 == 0, NA, uidatsub$IntGDM10)
+uidatsub$MigGDM10 <- ifelse(uidatsub$MigGDM10 == 0, NA, uidatsub$MigGDM10)
+
+q <- ggplot(uidatsub, aes(ResGDM10)) +
   geom_histogram()
-w <- ggplot(uidat, aes(IntGDM10)) +
+w <- ggplot(uidatsub, aes(IntGDM10)) +
   geom_histogram()
-e <- ggplot(uidat, aes(MigGDM10)) +
+e <- ggplot(uidatsub, aes(MigGDM10)) +
   geom_histogram()
 grid.arrange(q,w,e)
-  
+
 
 #### USE/NUTRITION MODELS ####
 
@@ -252,7 +262,7 @@ par(mfrow=c(2,2))
     mzp <- vglm(nLocs ~ offset(log(Total)) + GDM10,
                 family = pospoisson(), data = uidat)
     summary(mzp)
-    plot(mzp) #can't
+    #plot(mzp) #can't
     
     # negative binomial
     mnb <- glm.nb(nLocs ~ offset(log(Total)) + GDM10,
@@ -291,7 +301,7 @@ summary(m1)
 estm1 <- cbind(Estimate = coef(m1), confint(m1))
 estm1 # model coefficients
 exp(estm1) # estimated use-intensity ratios
-  # interp: ~21% increase in use-intensity rate for
+  # interp: ~23% increase in use-intensity rate for
   # every 10-g increase in GDM
 
 ## compare fit of quadratic and cubic terms
@@ -305,15 +315,16 @@ BIC(m1, m2, m3)
 
 
 
-#3. model separately for diff migbehaviors
-migdat <- uidat %>%
-  
-mr1 <- glm.nb(nRes ~ offset(log(Total)) + GDM10 + nLocs,
-              data = uidat, link = log)
-summary(mr1)
-est.mr1 <- cbind(Estimate = coef(mr1), confint(mr1))
-exp(est.mr1)
 
+#3. density as habitat component?
+#### kristin you left off here ####
+#### need to think about how to incl density as habitat component ####
+m4 <- glm.nb(nLocs ~ offset(log(Total)) + GDM10 + I(GDM10^2)  + I(GDM10^3),
+            data = uidat, link = log)
+m5 <- glm.nb(nLocs ~ offset(log(Total)) + GDM10 + I(GDM10^2)  + I(GDM10^3) + nLocs,
+            data = uidat, link = log)
+AIC(m4, m5)
+BIC(m4, m5)
 
 
 #### VISUALS - MODEL PREDICTIONS ####

@@ -689,3 +689,12 @@ pchisq(2 * (logLik(mnb) - logLik(mqp)), df = 1,
 # not actually sure i can do this
 # nope, gives NA
 
+
+#3. model separately for diff migbehaviors
+mr1 <- glm.nb(nRes ~ offset(log(tRes)) + GDM10,
+              data = uidat, link = log)
+mr2 <- glm.nb(nRes ~ offset(log(tRes)) + GDM10 * nLocs,
+              data = uidat, link = log)
+summary(mr2)
+AIC(mr1, mr2)
+BIC(mr1, mr2)
