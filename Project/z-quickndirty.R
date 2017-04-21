@@ -698,3 +698,68 @@ mr2 <- glm.nb(nRes ~ offset(log(tRes)) + GDM10 * nLocs,
 summary(mr2)
 AIC(mr1, mr2)
 BIC(mr1, mr2)
+
+
+
+
+#### measuring KUD heights, ugh ####
+
+stateplane <- CRS("+init=epsg:2818")
+
+## kdes
+
+# spatialpixelsdataframes
+  spix14 <- as(brick14, "SpatialPixelsDataFrame")
+  spix15 <- as(brick15, "SpatialPixelsDataFrame")
+
+# spatialpointsdataframes
+  xy14 <- data.frame("x" = ruf14$Long, "y" = ruf14$Lat)
+  ll14 <- SpatialPointsDataFrame(xy14, ruf14, proj4string = latlong)
+  sp14 <- spTransform(ll14, spix14@proj4string)
+  xy15 <- data.frame("x" = ruf15$Long, "y" = ruf15$Lat)
+  ll15 <- SpatialPointsDataFrame(xy15, ruf15, proj4string = latlong)
+  sp15 <- spTransform(ll15, spix15@proj4string)
+
+
+# lists of both
+  list14 <- list(spix14, sp14)
+  names(list14) <- c("spix14", "sp14")
+  list15 <- list(spix15, sp15)
+  names(list15) <- c("spix15", "sp15")
+
+
+# kuds with pixel heights, supposedly
+
+  kud14 <- kernelUD(list14$sp14[,13], grid = list14$spix14)
+  spdf14 <- estUDm2spixdf(kud14)
+  rast14 <- raster(spdf14)                              
+  plot(rast14)    
+  
+  kud15 <- kernelUD(list15$sp15[,13], grid = list15$spix15)
+  spdf15 <- estUDm2spixdf(kud15)
+  rast15 <- raster(spdf15)                              
+  plot(rast15) 
+
+# combine pixel heights with other spatial data
+
+
+## trying to get around this bullshit... ##
+## 
+                               
+                               
+### freq use of adequate or inadequate ~ density                             
+    # but this isn't actually interesting
+    # because these are just inverses of each other 
+pad <- ggplot(ruf, aes(x = nLocs, y = nAd/nIndiv)) +
+  stat_smooth(method = loess) +
+  geom_point(size = 1)
+pin <- ggplot(ruf, aes(x = nLocs, y = nInad/nIndiv)) +
+  stat_smooth(method = loess) +
+  geom_point(size = 1)
+grid.arrange(pad, pin)                               
+                               
+                               
+                               
+                               
+                               
+                               

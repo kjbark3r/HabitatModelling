@@ -18,6 +18,7 @@ rm(wd_workcomp, wd_laptop)
 ## load packages ##
 library(VGAM) #vglm(), zero-truncated poisson/negbin
 library(MASS) #glm.nb(), negbin
+library(adehabitatHR)
 library(AICcmodavg) 
 library(raster)
 library(ggplot2)
@@ -63,6 +64,9 @@ l14 <- locs %>%
   subset(Time < 0300 | Time > 2300) %>%
   group_by(IndivYr, Date) %>%
   sample_n(1) %>%
+  ungroup() %>%
+  group_by(IndivYr) %>%
+  mutate(tIndiv = n()) %>%
   ungroup()
     xy14 <- data.frame("x" = l14$Long, "y" = l14$Lat)
     ll14 <- SpatialPointsDataFrame(xy14, l14,proj4string = latlong)
@@ -73,13 +77,16 @@ l15 <- locs %>%
   subset(Time < 0300 | Time > 2300) %>%
   group_by(IndivYr, Date) %>%
   sample_n(1) %>%
+  ungroup() %>%
+  group_by(IndivYr) %>%
+  mutate(tIndiv = n()) %>%
   ungroup()
     xy15 <- data.frame("x" = l15$Long, "y" = l15$Lat)
     ll15 <- SpatialPointsDataFrame(xy15, l15,proj4string = latlong)
     sp15 <- spTransform(ll15, rawde15@crs)
 
 
-    
+
 #### COUNT NUMBER OF POINTS PER PIXEL ####
 
     
@@ -204,11 +211,72 @@ uidat <- locsnute.no0 %>%
          MigGDM10 = nMig/nLocs*GDM10)
 write.csv(uidat, file = "uidat.csv", row.names=F)
 
+
+## extract values per elk location ##
+
+ext14 <- raster::extract(brick14, sp14)
+ruf14 <- cbind(l14, ext14) %>%
+  rename(nLocs = layer.1,
+         nRes = layer.2,
+         nInt = layer.3,
+         nMig = layer.4,
+         DE = DE2014,
+         Biomass = gherb2014,
+         GDM = GDMherb2014) %>%
+  mutate(Year = "2014")
+ruf14[is.na(ruf14)] <- 0
+ruf14$tRes <- sum(ruf14$nRes)
+ruf14$tInt <- sum(ruf14$nInt)
+ruf14$tMig <- sum(ruf14$nMig)
+ruf14$UseIntensity <- ruf14$nLocs/sum(ruf14$nLocs)
+ruf14$Total <- sum(ruf14$nLocs)
+
+
+ext15 <- raster::extract(brick15, sp15) 
+ruf15 <- cbind(l15, ext15) %>%
+  rename(nLocs = layer.1,
+         nRes = layer.2,
+         nInt = layer.3,
+         nMig = layer.4,
+         DE = DE2015,
+         Biomass = gherb2015,
+         GDM = GDMherb2015) %>%
+  mutate(Year = "2015",
+         tRes = sum(nRes),
+         tInt = sum(nInt),
+         tMig = sum(nMig)) 
+ruf15[is.na(ruf15)] <- 0
+ruf15$tRes <- sum(ruf15$nRes)
+ruf15$tInt <- sum(ruf15$nInt)
+ruf15$tMig <- sum(ruf15$nMig)
+ruf15$UseIntensity <- ruf15$nLocs/sum(ruf15$nLocs)
+ruf15$Total <- sum(ruf15$nLocs)
+
+rufraw <- bind_rows(ruf14, ruf15)
+
+## distributions - for categorizing nutritional quality ##
+par(mfrow=c(2,1))
+hist(ruf$DE)
+hist(ruf$GDM)
+summary(ruf$DE)
+summary(ruf$GDM)
+
+
+
+ 
 #### VISUALS - DATA AND RELATIONSHIPS ####
 uidat <- read.csv("uidat.csv")
 
 # Use-intensity distribution
 hist(uidat$UseIntensity, breaks = 100)
+
+
+# nlocs ~ available nutrition
+plot(nLocs ~ GDM10, data = uidat)
+ggplot(uidat, aes(x = GDM10, y = nLocs)) +
+  stat_smooth(method = "loess") +
+  geom_point(size = 1)
+
 
 # use-intensity ~ available nutrition
 plot(UseIntensity ~ GDM10, data = uidat)
@@ -217,7 +285,7 @@ ggplot(uidat, aes(x = GDM10, y = UseIntensity)) +
   geom_point(size = 1)
 
 
-# trying the above all on one plot
+# UI per migstatus ~ GDM
 ggplot(uidat, aes(GDM10)) +
   stat_smooth(aes(y = ResUI, colour = "ResUI"), method = "loess") +
   stat_smooth(aes(y = IntUI, colour = "IntUI"), method = "loess") +
@@ -231,7 +299,6 @@ uidatsub <- uidat
 uidatsub$ResGDM10 <- ifelse(uidatsub$ResGDM10 == 0, NA, uidatsub$ResGDM10)
 uidatsub$IntGDM10 <- ifelse(uidatsub$IntGDM10 == 0, NA, uidatsub$IntGDM10)
 uidatsub$MigGDM10 <- ifelse(uidatsub$MigGDM10 == 0, NA, uidatsub$MigGDM10)
-
 q <- ggplot(uidatsub, aes(ResGDM10)) +
   geom_histogram()
 w <- ggplot(uidatsub, aes(IntGDM10)) +
@@ -241,7 +308,12 @@ e <- ggplot(uidatsub, aes(MigGDM10)) +
 grid.arrange(q,w,e)
 
 
+
+
 #### USE/NUTRITION MODELS ####
+
+
+#### population-level ####
 
 #1. determine best type of model
 par(mfrow=c(2,2))
@@ -281,7 +353,7 @@ par(mfrow=c(2,2))
     summary(mznb)
 
 
-#### assessing relative model fit ####
+### relative model fit ###
 
 ## poisson vs negbin ##
 # likelihood ratio test #
@@ -315,17 +387,93 @@ BIC(m1, m2, m3)
 
 
 
+## ## ## ## ## ## ##
+#### INDIV-LEVEL ###
+## ## ## ## ## ## ##
 
-#3. density as habitat component?
-#### kristin you left off here ####
-#### need to think about how to incl density as habitat component ####
-m4 <- glm.nb(nLocs ~ offset(log(Total)) + GDM10 + I(GDM10^2)  + I(GDM10^3),
-            data = uidat, link = log)
-m5 <- glm.nb(nLocs ~ offset(log(Total)) + GDM10 + I(GDM10^2)  + I(GDM10^3) + nLocs,
-            data = uidat, link = log)
-AIC(m4, m5)
-BIC(m4, m5)
 
+# scaling function
+myscale <- function(x) {}
+  
+
+
+## indiv-based dataframe
+ruf <- rufraw %>%
+  mutate(DEcat = ifelse(DE>2.75, "Adequate", "Inadequate")) %>%
+  group_by(IndivYr) %>%
+  mutate(nAd = length(which(DEcat == "Adequate")),
+         nInad = length(which(DEcat == "Inadequate")),
+         nExc = length(which(DE >= 2.9)),
+         nGood = length(which(DE >= 2.75 & DE < 2.9)),
+         nMarg = length(which(DE >= 2.4 & DE < 2.75)),
+         nPoor = length(which(DE < 2.4)),
+         nIndiv = n()) %>%
+  ungroup() %>%
+  group_by(Year) %>%
+  mutate(nLocsStd = scale(nLocs)[,], #[,] removes attributes
+         GDMStd = scale(GDM)[,],
+         DEStd = scale(DE)[,],
+         HBMStd = scale(Biomass)[,]) %>%
+  ungroup()
+
+write.csv(ruf, file = "ruf-data.csv", row.names=F)
+
+#### effect of conspecific density on selection ####
+
+# selxn 
+mdens <- glm.nb(nAd ~ offset(log(nIndiv)) + nLocsStd, 
+                link = log, data= ruf)
+mgdm <- glm.nb(nAd ~ offset(log(nIndiv)) + GDMStd, 
+               link = log, data= ruf)
+mgdmdens <- glm.nb(nAd ~ offset(log(nIndiv)) + GDMStd + nLocsStd, 
+                   link = log, data= ruf)
+mgdm.dens <- glm.nb(nAd ~ offset(log(nIndiv)) + GDMStd * nLocsStd, 
+                   link = log, data= ruf)
+AIC(mdens, mgdm, mgdmdens, mgdm.dens)
+   
+md <- glm.nb(nAd ~ offset(log(nIndiv)) + nLocs,
+             link = log, data = ruf)
+summary(md)
+
+
+
+
+## DE categories instead of just adequate
+
+# excellent
+mexc <- glm.nb(nExc ~ offset(log(nIndiv)) + nLocs, 
+                link = log, data= ruf)
+summary(mexc)
+a <- ggplot(ruf, aes(x = nLocs, y = nExc/nIndiv)) +
+  stat_smooth(method = loess) +
+  geom_point(size = 1)
+
+# good
+mgd <- glm.nb(nGood ~ offset(log(nIndiv)) + nLocs, 
+                link = log, data= ruf)
+summary(mgd)
+b <- ggplot(ruf, aes(x = nLocs, y = nGood/nIndiv)) +
+  stat_smooth(method = loess) +
+  geom_point(size = 1)
+
+# marginal
+mmr <- glm.nb(nMarg ~ offset(log(nIndiv)) + nLocs, 
+                link = log, data= ruf)
+summary(mmr)
+c <- ggplot(ruf, aes(x = nLocs, y = nMarg/nIndiv)) +
+  stat_smooth(method = loess) +
+  geom_point(size = 1)
+
+# poor
+mpr <- glm.nb(nPoor ~ offset(log(nIndiv)) + nLocs, 
+                link = log, data= ruf)
+summary(mpr)
+d <- ggplot(ruf, aes(x = nLocs, y = nPoor/nIndiv)) +
+  stat_smooth(method = loess) +
+  geom_point(size = 1)
+
+# plot all together
+grid.arrange(a, b, c, d, nrow = 2)
 
 #### VISUALS - MODEL PREDICTIONS ####
 
