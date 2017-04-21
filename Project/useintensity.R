@@ -417,6 +417,7 @@ ruf <- rufraw %>%
   ungroup()
 
 write.csv(ruf, file = "ruf-data.csv", row.names=F)
+ruf <- read.csv("ruf-data.csv")
 
 #### effect of conspecific density on selection ####
 
@@ -444,7 +445,8 @@ summary(md)
 mexc <- glm.nb(nExc ~ offset(log(nIndiv)) + nLocs, 
                 link = log, data= ruf)
 summary(mexc)
-a <- ggplot(ruf, aes(x = nLocs, y = nExc/nIndiv)) +
+a <- ggplot(ruf, aes(x = nLocs, y = nExc/nIndiv,
+                     linetype = MigStatus)) +
   stat_smooth(method = loess) +
   geom_point(size = 1)
 
