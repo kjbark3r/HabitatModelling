@@ -387,14 +387,9 @@ BIC(m1, m2, m3)
 
 
 
-## ## ## ## ## ## ##
-#### INDIV-LEVEL ###
-## ## ## ## ## ## ##
-
-
-# scaling function
-myscale <- function(x) {}
-  
+## ## ## ## ## ## ###
+#### INDIV-LEVEL ####
+## ## ## ## ## ## ###
 
 
 ## indiv-based dataframe
@@ -415,9 +410,10 @@ ruf <- rufraw %>%
          DEStd = scale(DE)[,],
          HBMStd = scale(Biomass)[,]) %>%
   ungroup()
-
 write.csv(ruf, file = "ruf-data.csv", row.names=F)
+
 ruf <- read.csv("ruf-data.csv")
+
 
 #### effect of conspecific density on selection ####
 
@@ -436,8 +432,12 @@ md <- glm.nb(nAd ~ offset(log(nIndiv)) + nLocs,
              link = log, data = ruf)
 summary(md)
 
-
-
+# plot
+pad <- ggplot(ruf, aes(x = nLocs, y = nAd/nIndiv,
+                       linetype = MigStatus)) +
+  stat_smooth(method = loess) +
+  geom_point(size = 1)
+pad
 
 ## DE categories instead of just adequate
 
@@ -454,7 +454,8 @@ a <- ggplot(ruf, aes(x = nLocs, y = nExc/nIndiv,
 mgd <- glm.nb(nGood ~ offset(log(nIndiv)) + nLocs, 
                 link = log, data= ruf)
 summary(mgd)
-b <- ggplot(ruf, aes(x = nLocs, y = nGood/nIndiv)) +
+b <- ggplot(ruf, aes(x = nLocs, y = nGood/nIndiv,
+                     linetype = MigStatus)) +
   stat_smooth(method = loess) +
   geom_point(size = 1)
 
@@ -462,7 +463,8 @@ b <- ggplot(ruf, aes(x = nLocs, y = nGood/nIndiv)) +
 mmr <- glm.nb(nMarg ~ offset(log(nIndiv)) + nLocs, 
                 link = log, data= ruf)
 summary(mmr)
-c <- ggplot(ruf, aes(x = nLocs, y = nMarg/nIndiv)) +
+c <- ggplot(ruf, aes(x = nLocs, y = nMarg/nIndiv,
+                     linetype = MigStatus)) +
   stat_smooth(method = loess) +
   geom_point(size = 1)
 
@@ -470,16 +472,19 @@ c <- ggplot(ruf, aes(x = nLocs, y = nMarg/nIndiv)) +
 mpr <- glm.nb(nPoor ~ offset(log(nIndiv)) + nLocs, 
                 link = log, data= ruf)
 summary(mpr)
-d <- ggplot(ruf, aes(x = nLocs, y = nPoor/nIndiv)) +
+d <- ggplot(ruf, aes(x = nLocs, y = nPoor/nIndiv,
+                     linetype = MigStatus)) +
   stat_smooth(method = loess) +
   geom_point(size = 1)
 
 # plot all together
 grid.arrange(a, b, c, d, nrow = 2)
 
+
 #### VISUALS - MODEL PREDICTIONS ####
 
-pp <- ggplot(uidat, aes(x = GDM10, y = UseIntensity)) +
+pp <- ggplot(uidat, aes(x = GDM10, y = UseIntensity,
+                     linetype = MigStatus)) +
   stat_smooth(method="glm",
               se = TRUE,
               formula = y ~ poly(x, 3, raw = TRUE)) +
