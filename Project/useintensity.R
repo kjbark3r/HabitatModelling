@@ -26,6 +26,11 @@ library(gridExtra)
 library(tidyr)
 library(dplyr)
 
+
+
+#### DATA PREP ####
+
+
 ## read in "raw" data ##
 rawlocs <- read.csv("../../ElkDatabase/collardata-locsonly-equalsampling.csv")
 rawde14 <- raster("../../Vegetation/DE2014.tif")
@@ -37,14 +42,9 @@ rawgdm15 <- raster("GDMherb2015.tif")
 migstatus <- read.csv("../../Nutrition/migstatus.csv")
 mig <- dplyr::select(migstatus, c(IndivYr, MigStatus))
 
+
 ## define projection ##
 latlong <- CRS("+init=epsg:4326") # WGS84 projection
-
-
-
-#### DATA PREP ####
-
-## GDM prelim estimation ##
 
 
 ## format dates and times; add IndivYr and MigStatus ##
@@ -56,6 +56,7 @@ locs$IndivYr <- ifelse(locs$Date < "2015-01-01",
                        paste(locs$AnimalID, "-15", sep=""))  
 locs <- left_join(locs, mig, by = "IndivYr")
 locs <- locs[!is.na(locs["MigStatus"]),]
+
 
 ## rm non-foraging times; subset 1 rndm loc/day; spatialize ##
 l14 <- locs %>%
@@ -272,9 +273,9 @@ hist(uidat$UseIntensity, breaks = 100)
 
 
 # nlocs ~ available nutrition
-plot(nLocs ~ GDM10, data = uidat)
-ggplot(uidat, aes(x = GDM10, y = nLocs)) +
-  stat_smooth(method = "loess") +
+plot(nLocs ~ GDM, data = uidat)
+ggplot(uidat, aes(x = GDM, y = nLocs)) +
+  stat_smooth() +
   geom_point(size = 1)
 
 
@@ -308,10 +309,28 @@ e <- ggplot(uidatsub, aes(MigGDM10)) +
 grid.arrange(q,w,e)
 
 
+## ALLEE'S PRINCIPLE ##
+# GDM ~ use-intensity
+ggplot(uidat, aes(x = UseIntensity, y = GDM)) +
+  stat_smooth() +
+  geom_point(size = 1)
+# DE ~ nLocs
+ggplot(uidat, aes(x = nLocs, y = DE)) +
+  stat_smooth() +
+  geom_point(size = 1)
+# GDM ~ nLocs
+ggplot(uidat, aes(x = nLocs, y = GDM)) +
+  stat_smooth() +
+  geom_point(size = 1)
+
 
 
 #### USE/NUTRITION MODELS ####
 
+
+## ## ## ## ## ## ###  ## ### ###
+#### GRAMS DIGESTIBLE MATTER ####
+## ## ## ## ## ## ###  ## ### ###
 
 #### population-level ####
 
@@ -384,6 +403,112 @@ m3 <- glm.nb(nLocs ~ offset(log(Total)) + GDM10 + I(GDM10^2)  + I(GDM10^3),
 AIC(m1, m2, m3)
 BIC(m1, m2, m3)
 # cubic comes out best, even when more highly penalized
+
+
+## TOP MODEL ##
+
+## summary and coeffs ##
+summary(m2)
+
+## predicted plot ##
+ppm2 <- ggplot(uidat, aes(x = GDM, y = nLocs/Total)) +
+  stat_smooth(method = "glm",  
+                    formula = y ~ poly(x, 3, raw = TRUE)) 
++
+  geom_point(size = 1)
+ppm2
+
+## just regular relationship
+ggplot(uidat, aes(x=GDM, y=nLocs)) +
+  stat_smooth()
+(method = "glm",  
+                    formula = y ~ poly(x, 3, raw = TRUE))
+
+## ## ## ## ## ## ### ## ##
+#### DIGESTIBLE ENERGY ####
+## ## ## ## ## ## ### ## ##
+
+
+#### population-level ####
+
+#1. determine best type of model
+par(mfrow=c(2,2))
+
+    # poisson
+    mp <- glm(nLocs ~ offset(log(Total)) + DE,
+                family = poisson, data = uidat)
+    summary(mp)
+    plot(mp)
+    
+    # quasipoisson
+    mqp <- glm(nLocs ~ offset(log(Total)) + DE,
+                family = quasipoisson, data = uidat)
+    summary(mqp)
+    plot(mqp) # essentially same as above
+    
+    # zero-truncated poisson
+    mzp <- vglm(nLocs ~ offset(log(Total)) + DE,
+                family = pospoisson(), data = uidat)
+    summary(mzp)
+    #plot(mzp) #can't
+    
+    # negative binomial
+    mnb <- glm.nb(nLocs ~ offset(log(Total)) + DE,
+                data = uidat, link = log)
+    summary(mnb)
+    plot(mnb) #very similar to mp, mqp
+    # assumption: dispersion parameter that changes
+    # whereas in poisson it is held constant
+      # so poisson is a type of negbin model
+    
+    # zero-truncated negative binomial
+    mznb <- vglm(nLocs ~ offset(log(Total)) + DE,
+                data = uidat, 
+                family = posnegbinomial())
+    warnings()
+    summary(mznb)
+
+
+### relative model fit ###
+
+## poisson vs negbin ##
+# likelihood ratio test #
+pchisq(2 * (logLik(mnb) - logLik(mp)), df = 1, 
+       lower.tail = FALSE)
+# can do this bc poisson is nested in negbin
+# very small p-value suggests negbin is better
+# based on this i'm throwing out all the p stuff
+# and based on mznb warnings i'm throwing that out 
+# so, negbin ftw!!
+
+
+#2. determine whether relationship is linear
+m1 <- glm.nb(nLocs ~ offset(log(Total)) + DE,
+            data = uidat, link = log)
+summary(m1)
+estm1 <- cbind(Estimate = coef(m1), confint(m1))
+estm1 # model coefficients
+exp(estm1) # estimated use-intensity ratios
+  # interp: ~23% increase in use-intensity rate for
+  # every 10-g increase in GDM
+
+## compare fit of quadratic and cubic terms
+m2 <- glm.nb(nLocs ~ offset(log(Total)) + DE + I(DE^2),
+            data = uidat, link = log)
+m3 <- glm.nb(nLocs ~ offset(log(Total)) + DE + I(DE^2)  + I(DE^3),
+            data = uidat, link = log)
+AIC(m1, m2, m3)
+BIC(m1, m2, m3)
+# cubic comes out best, even when more highly penalized
+
+
+## predicted relationship plot ##
+pp <- ggplot(uidat, aes(x = DE, y = UseIntensity)) +
+  stat_smooth(method="glm",
+              se = TRUE,
+              formula = y ~ poly(x, 3, raw = TRUE)) +
+  geom_point(size=1)
+pp
 
 
 
@@ -490,4 +615,16 @@ pp <- ggplot(uidat, aes(x = GDM10, y = UseIntensity,
               formula = y ~ poly(x, 3, raw = TRUE)) +
   geom_point(size=1)
 pp
+
+
+
+#### FOR PRESN ####
+
+
+## default-smoothed nLocs ~ GDM
+ggplot(uidat, aes(x = GDM, y = nLocs)) +
+  stat_smooth() +
+  geom_point(size = 1)
+
+## nLocs ~ GDM actual relationship
 
