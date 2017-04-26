@@ -34,7 +34,7 @@ uidat <- read.csv("uidat.csv")
 #### VISUALS ####
 
 
-## default-smoothed nLocs ~ GDM
+## default-smoothed nLocs ~ GDM w points
 ggplot(uidat, aes(x = GDM, y = nLocs)) +
   stat_smooth() +
   geom_point(size = 1)
@@ -44,6 +44,25 @@ ggplot(uidat, aes(x = GDM, y = UseIntensity)) +
   stat_smooth() +
   geom_point(size = 1)
   
+## smoothed nLocs ~ GDM wo points
+ggplot(uidat, aes(x = GDM, y = nLocs)) +
+  stat_smooth(method = "loess") 
+ggplot(uidat, aes(x = GDM, y = nLocs)) +
+  stat_smooth() 
+ggplot(uidat, aes(x = GDM, y = nLocs)) +
+  stat_smooth(method = "glm",
+              formula = y ~ poly(x, 3, raw = TRUE)) 
+
+## just points
+pt <- ggplot(uidat, aes(y = nLocs, x = GDM)) +
+  labs(y=expression(paste("Elk use (# individuals)", sep="")), 
+       x="Available nutrition (GDM)") +
+  geom_point(size = 1)
+pt
+
+pt + stat_smooth()
+pt + stat_smooth(method="glm", 
+                 formula = y ~ poly(x, 3, raw = TRUE))
 
 
 #### MODELS ####
@@ -65,14 +84,12 @@ ggplot(uidat, aes(x = GDM, y = UseIntensity)) +
     mzp <- vglm(nLocs ~ GDM,
                 family = pospoisson(), data = uidat)
     summary(mzp)
-    plot(mzp) #can't
     
     # negative binomial
     mnb <- glm.nb(nLocs ~ GDM,
                 data = uidat, link = log)
     summary(mnb)
-    plot(mnb) #very similar to mp, mqp
-
+    
     # zero-truncated negative binomial
     mznb <- vglm(nLocs ~ GDM,
                 data = uidat, 
@@ -81,7 +98,19 @@ ggplot(uidat, aes(x = GDM, y = UseIntensity)) +
     warnings()
       # warnings say not to use this
 
-    
+
+## test poisson for overdispersion ##
+    library(AER)
+    dispersiontest(mp, trafo = 1)
+    # tests for diff bt a model of variance=mean and 
+    # of variance = mean + some constant*a function of the mean
+    # alpha = overdispersion parameter
+
+## relative support for zero-truncated poisson or negbin ##
+AIC(mzp)
+AIC(mnb)
+# zero-truncated poisson
+# but i'm nervous about the overdispersion
 
 
     
@@ -104,8 +133,15 @@ ggplot(uidat, aes(x = GDM, y = UseIntensity)) +
       # no? i don't get what it means when it says 1 
     pchisq(2 * (logLik(mznb) - logLik(mzp)), df = 1, lower.tail = FALSE)
     
+    # quasipoisson > negative binomial?
+    pchisq(2 * (logLik(mqp) - logLik(mnb)), df = 1, lower.tail = FALSE)
+      # can't do this bc quasipoisson doesn't have a likelihood, ugh
+
+
     
-    
+
+
+        
 ## just playing with the zero-truncated poisson for now
     mzp1 <- vglm(nLocs ~ GDM,
                 family = pospoisson(), data = uidat)
@@ -127,14 +163,18 @@ ggplot(uidat, aes(x = GDM, y = UseIntensity)) +
     
     # new df, longform #
     vdf <- uidat %>%
-      dplyr::select(ResGDM10, IntGDM10, MigGDM10) %>%
+      mutate(ResGDM = ResGDM10*10,
+              IntGDM = IntGDM10*10,
+             MigGDM = MigGDM10*10) %>%
+      dplyr::select(ResGDM, IntGDM, MigGDM) %>%
       gather(key = MigStatus, value = GDMpc) %>%
       transform(MigStatus = factor(MigStatus,
-                        levels = c("ResGDM10",
-                                   "IntGDM10",
-                                   "MigGDM10"),
+                        levels = c("ResGDM",
+                                   "IntGDM",
+                                   "MigGDM"),
                             ordered = TRUE)) 
-    viol <- ggplot(data = vdf, aes(x = MigStatus, y = GDMpc)) +
+    viol <- ggplot(data = vdf, aes(x = MigStatus, 
+                                   y = log(GDMpc))) +
       geom_violin(fill="grey") +
         geom_boxplot(width=.1, outlier.colour=NA) +
         geom_hline(yintercept=2.75) +

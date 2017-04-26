@@ -35,8 +35,8 @@ library(dplyr)
 rawlocs <- read.csv("../../ElkDatabase/collardata-locsonly-equalsampling.csv")
 rawde14 <- raster("../../Vegetation/DE2014.tif")
 rawde15 <- raster("../../Vegetation/DE2015.tif")
-rawhbm14 <- raster("../../Vegetation/gherb2014.tif")
-rawhbm15 <- raster("../../Vegetation/gherb2015.tif")
+#rawhbm14 <- raster("../../Vegetation/gherb2014.tif")
+#rawhbm15 <- raster("../../Vegetation/gherb2015.tif")
 rawgdm14 <- raster("GDMherb2014.tif")
 rawgdm15 <- raster("GDMherb2015.tif")
 migstatus <- read.csv("../../Nutrition/migstatus.csv")
@@ -147,8 +147,8 @@ mn15 <- rasterize(mcoords15, refraster, fun='count')
 ## resampled nute/250m2 pixel ##
 de14.250 <- resample(rawde14, refraster, method='bilinear')
 de15.250 <- resample(rawde15, refraster, method='bilinear')
-hbm14.250 <- resample(rawhbm14, refraster, method='bilinear')
-hbm15.250 <- resample(rawhbm15, refraster, method='bilinear')
+#hbm14.250 <- resample(rawhbm14, refraster, method='bilinear')
+#hbm15.250 <- resample(rawhbm15, refraster, method='bilinear')
 gdm14.250 <- resample(rawgdm14, refraster, method='bilinear')
 gdm15.250 <- resample(rawgdm15, refraster, method='bilinear')
 gdm14.250[gdm14.250 < 0] <- 0
@@ -157,7 +157,8 @@ gdm15.250[gdm15.250 < 0] <- 0
 ## combine nlocs with underlying veg data ##
 
 brick14 <- brick(n14, rn14, in14, mn14,
-                 de14.250, hbm14.250, gdm14.250)
+                 de14.250, #hbm14.250, 
+                 gdm14.250)
 locs14 <- data.frame(getValues(brick14))
 locs14 <- locs14 %>%
   rename(nLocs = layer.1,
@@ -165,7 +166,7 @@ locs14 <- locs14 %>%
          nInt = layer.3,
          nMig = layer.4,
          DE = DE2014,
-         Biomass = gherb2014,
+         #Biomass = gherb2014,
          GDM = GDMherb2014) %>%
   mutate(Year = "2014")
 locs14[is.na(locs14)] <- 0
@@ -176,7 +177,8 @@ locs14$UseIntensity <- locs14$nLocs/sum(locs14$nLocs)
 locs14$Total <- sum(locs14$nLocs)
 
 brick15 <- brick(n15, rn15, in15, mn15,
-                 de15.250, hbm15.250, gdm15.250)
+                 de15.250, #hbm15.250, 
+                 gdm15.250)
 locs15 <- data.frame(getValues(brick15))
 locs15 <- locs15 %>%
   rename(nLocs = layer.1,
@@ -184,7 +186,7 @@ locs15 <- locs15 %>%
          nInt = layer.3,
          nMig = layer.4,
          DE = DE2015,
-         Biomass = gherb2015,
+         #Biomass = gherb2015,
          GDM = GDMherb2015) %>%
   mutate(Year = "2015",
          tRes = sum(nRes),

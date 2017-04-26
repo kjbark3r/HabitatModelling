@@ -33,8 +33,19 @@ ruf <- read.csv("ruf-data.csv")
 
 #### MODELS - PR(SELXN) ####
 
+## poisson, or negative binomial? ##
 
-## Pr(Use) ~ DE category ####
+  # nExc #
+  mep <- glm(nExc ~ offset(log(nIndiv)) + nLocs, 
+                  family = poisson, data= ruf)
+  menb <- glm.nb(nExc ~ offset(log(nIndiv)) + nLocs, 
+                  link = log, data= ruf)
+  par(mfrow=c(2,2))
+  plot(mep)
+  plot(menb)
+
+  
+## Pr(Use) ~ DE category , NegBin ####
 
   # excellent DE #
   mexc1 <- glm.nb(nExc ~ offset(log(nIndiv)) + nLocs, 
@@ -50,8 +61,7 @@ ruf <- read.csv("ruf-data.csv")
                   link = log, data= ruf)
   mgd2 <- glm.nb(nGood ~ offset(log(nIndiv)) + nLocs + I(nLocs^2), 
                   link = log, data= ruf)
-  mgd3 <- glm.nb(nGood ~ offset(log(nIndiv)) + nLocs + I(nLocs^2) + I(nLocs^3), 
-                  link = log, data= ruf)
+  summary(mgd3)
   BIC(mgd1, mgd2, mgd3) # squared/cubic indistinguishable
  
   # marginal DE #
@@ -76,7 +86,7 @@ ruf <- read.csv("ruf-data.csv")
 ## top models ##
 mexc2 <- glm.nb(nExc ~ offset(log(nIndiv)) + nLocs + I(nLocs^2), 
                   link = log, data= ruf)
-  
+summary(mexc2)  
 
 
 #### VISUALS - RELATIONSHIP PLOTS ####
@@ -122,23 +132,32 @@ grid.arrange(e,f,g,h, nrow = 2)
 #### VISUALS - PREDICTED PLOTS ####
 
 # all together
-pp <- ggplot(ruf, aes(nLocs)) 
+pp <- ggplot(ruf, aes(nLocs))  +
+  labs(x=expression(paste("Conspecific Density (n/250",
+                            m^2, ")", sep="")), 
+       y="Relative frequency of use",
+       colour = "Habitat Type") +
+  scale_color_hue(labels = c("Marginal", 
+                             "Poor"))
 pexc <- stat_smooth(aes(y = nExc/nIndiv, colour = "nExc"),
                     method = "glm",  
                     formula = y ~ poly(x, 2, raw = TRUE))
 pgd <- stat_smooth(aes(y = nGood/nIndiv, colour = "nGood"),
                     method = "glm",  
                     formula = y ~ poly(x, 3, raw = TRUE))
+pp+pexc+pgd
+
 pmrg <- stat_smooth(aes(y = nMarg/nIndiv, colour = "nMarg"),
                     method = "glm",  
                     formula = y ~ poly(x, 3, raw = TRUE))
 ppoor <- stat_smooth(aes(y = nPoor/nIndiv, colour = "nPoor"),
                     method = "glm")
-pp+pexc+pgd+pmrg+ppoor
+pp+pmrg+ppoor
+
 
 
 # split by adequate/inadequate
 z <- pp+pexc+pgd
 y <- pp+pmrg+ppoor
 grid.arrange(z, y, nrow=2)
-
+z
