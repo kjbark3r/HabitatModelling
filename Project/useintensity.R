@@ -521,7 +521,9 @@ pp
 
 ## indiv-based dataframe
 ruf <- rufraw %>%
-  mutate(DEcat = ifelse(DE>2.75, "Adequate", "Inadequate")) %>%
+  mutate(DEcat = ifelse(DE >= 2.90, "Excellent", 
+                 ifelse(DE >= 2.75 & DE < 2.90, "Good",
+                 ifelse(DE < 2.75, "Marginal", "Poor"))) %>%
   group_by(IndivYr) %>%
   mutate(nAd = length(which(DEcat == "Adequate")),
          nInad = length(which(DEcat == "Inadequate")),

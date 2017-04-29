@@ -37,13 +37,16 @@ ruf <- read.csv("ruf-data.csv")
 
   # nExc #
   mep <- glm(nExc ~ offset(log(nIndiv)) + nLocs, 
-                  family = poisson, data= ruf)
+                  family = poisson, data= ruf,
+             subset = DEcat==elkids[i])
   menb <- glm.nb(nExc ~ offset(log(nIndiv)) + nLocs, 
                   link = log, data= ruf)
   par(mfrow=c(2,2))
   plot(mep)
   plot(menb)
 
+  # negative binomial > poisson?
+    pchisq(2 * (logLik(mep) - logLik(menb)), df = 1, lower.tail = FALSE)
   
 ## Pr(Use) ~ DE category , NegBin ####
 

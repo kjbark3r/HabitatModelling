@@ -51,8 +51,9 @@ pairs.panels(dat.cor)
 ## 0.52 cc-elev
 ## 0.65 cc-landcov
 ## 0.57 elev-ti.ndvi
-# removing cc in order to keep landcov
-# also ended up removing ndvi_dur bc of NAs
+# removing cc in order to keep landcov & elev
+# also removed ndvi_dur bc of NAs
+# and because it's never been important before...
 
 
 
@@ -87,7 +88,7 @@ names(stack.14) # sanity check
 rast.15 <- list.files(path=paste(wd, "writtenrasters/covs2015", sep="/"), 
                       pattern="tif$", full.names=TRUE)  #read in 2015 rasters
 stack.15 <- stack(rast.15)
-names(stack.15) # rename these to match covariate names
+names(stack.15) 
 names(stack.15) <- c("elev", "gsri", "landcov", "ndvi_ti", "precip", "slope")
 names(stack.15)
 
