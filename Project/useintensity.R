@@ -224,7 +224,7 @@ ruf14 <- cbind(l14, ext14) %>%
          nInt = layer.3,
          nMig = layer.4,
          DE = DE2014,
-         Biomass = gherb2014,
+         #Biomass = gherb2014,
          GDM = GDMherb2014) %>%
   mutate(Year = "2014")
 ruf14[is.na(ruf14)] <- 0
@@ -242,7 +242,7 @@ ruf15 <- cbind(l15, ext15) %>%
          nInt = layer.3,
          nMig = layer.4,
          DE = DE2015,
-         Biomass = gherb2015,
+         #Biomass = gherb2015,
          GDM = GDMherb2015) %>%
   mutate(Year = "2015",
          tRes = sum(nRes),
@@ -521,9 +521,10 @@ pp
 
 ## indiv-based dataframe
 ruf <- rufraw %>%
-  mutate(DEcat = ifelse(DE >= 2.90, "Excellent", 
+  mutate(HabSuit = ifelse(DE >= 2.90, "Excellent", 
                  ifelse(DE >= 2.75 & DE < 2.90, "Good",
-                 ifelse(DE < 2.75, "Marginal", "Poor"))) %>%
+                 ifelse(DE < 2.75, "Marginal", "Poor"))),
+         DEcat = ifelse(DE >= 2.75, "Adequate", "Inadequate")) %>%
   group_by(IndivYr) %>%
   mutate(nAd = length(which(DEcat == "Adequate")),
          nInad = length(which(DEcat == "Inadequate")),
@@ -536,8 +537,7 @@ ruf <- rufraw %>%
   group_by(Year) %>%
   mutate(nLocsStd = scale(nLocs)[,], #[,] removes attributes
          GDMStd = scale(GDM)[,],
-         DEStd = scale(DE)[,],
-         HBMStd = scale(Biomass)[,]) %>%
+         DEStd = scale(DE)[,]) %>%
   ungroup()
 write.csv(ruf, file = "ruf-data.csv", row.names=F)
 
