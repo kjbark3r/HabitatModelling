@@ -760,6 +760,20 @@ grid.arrange(pad, pin)
                                
                                
                                
-                               
-                               
-                               
+#### visual nute ~ locs ####
+gdm14 <- raster("GDMherb2014.tif")
+latlong <- CRS("+init=epsg:4326") # WGS84 projection
+rufxy <- data.frame("x" = ruf$Long, "y" = ruf$Lat)
+rufll <- SpatialPointsDataFrame(rufxy, ruf,proj4string = latlong)
+rufsp <- spTransform(rufll, gdm14@crs)
+plot(gdm14, extent = c(260000,280000, 265000, 290000))
+plot(rufsp, add=T)                               
+
+
+
+#### popn-level HR ####
+
+#### DEFINE AVAILABILITY - MCP ####
+mhr <- mcp(rufsp, percent=100)
+plot(mhr, add=T)
+# nah, that looks shitty
