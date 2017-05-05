@@ -777,3 +777,102 @@ plot(rufsp, add=T)
 mhr <- mcp(rufsp, percent=100)
 plot(mhr, add=T)
 # nah, that looks shitty
+
+
+#### RSF TIME, FINALLY ####
+uadat <- read.csv("rsf-data.csv")
+
+# excellent #
+exc1 <- glm(Used ~ nLocs, family = binomial(logit),
+           data = uadat, subset = HabSuit == "Excellent")
+exc2 <- glm(Used ~ nLocs + I(nLocs^2), family = binomial(logit),
+           data = uadat, subset = HabSuit == "Excellent")
+exc3 <- glm(Used ~ nLocs + I(nLocs^2) + I(nLocs^3), family = binomial(logit),
+           data = uadat, subset = HabSuit == "Excellent")
+BIC(exc1, exc2, exc3)
+
+
+# good #
+gd1 <- glm(Used ~ nLocs, family = binomial(logit),
+           data = uadat, subset = HabSuit == "Good")
+gd2 <- glm(Used ~ nLocs + I(nLocs^2), family = binomial(logit),
+           data = uadat, subset = HabSuit == "Good")
+gd3 <- glm(Used ~ nLocs + I(nLocs^2) + I(nLocs^3), family = binomial(logit),
+           data = uadat, subset = HabSuit == "Good")
+BIC(gd1, gd2, gd3)
+
+
+# marginal #
+mg1 <- glm(Used ~ nLocs, family = binomial(logit),
+           data = uadat, subset = HabSuit == "Marginal")
+mg2 <- glm(Used ~ nLocs + I(nLocs^2), family = binomial(logit),
+           data = uadat, subset = HabSuit == "Marginal")
+mg3 <- glm(Used ~ nLocs + I(nLocs^2) + I(nLocs^3), family = binomial(logit),
+           data = uadat, subset = HabSuit == "Marginal")
+BIC(mg1, mg2, mg3)
+
+
+#### REALIZE WHY THIS WAS A DUMB IDEA ####
+
+testexc <- filter(uadat, HabSuit == "Excellent")
+testexc$Fitted <- fitted(exc3)
+plot(testexc$nLocs, testexc$Fitted)
+
+testgd <- filter(uadat, HabSuit == "Good")
+testgd$Fitted <- fitted(gd3)
+plot(testgd$nLocs, testgd$Fitted)
+
+
+testmg <- filter(uadat, HabSuit == "Marginal")
+testmg$Fitted <- fitted(mg3)
+plot(testmg$nLocs, testmg$Fitted)
+
+
+
+
+#### measuring volume of ud in each pixel ####
+
+data("puechabonsp")
+loc <- puechabonsp$locs[, c("X", "Y")]
+id <- puechabonsp$locs[, "Name"]
+elev <- getkasc(puechabonsp$kasc, "Elevation")
+
+# read & prep elk locations (from Access DB, processed in ElkDatabase/dataprep.R)
+locs <- read.csv("../../ElkDatabase/collardata-locsonly-equalsampling.csv") %>%
+  dplyr::select(c(AnimalID, Date, Time, Lat, Long, Sex)) %>%
+  within(Date <- as.Date(Date, format = "%Y-%m-%d")) %>% #format date
+  filter(Sex == "Female") %>% #not using males for nutrition analysis
+  subset(between(Date, as.Date("2014-07-01"), as.Date("2014-08-31")) | #summer
+         between(Date, as.Date("2015-07-01"), as.Date("2015-08-31"))) %>% 
+  mutate(IndivYr = ifelse(Date < "2015-01-01", 	 # add indiv id (elk-year)
+						   paste(AnimalID, "-14", sep=""),
+						   paste(AnimalID, "-15", sep="")))
+
+# define projections
+latlong <- CRS("+init=epsg:4326")
+stateplane <- CRS("+init=epsg:2818")
+
+## reference raster - 250m2 resolution ##
+rawde14 <- raster("../../Vegetation/DE2014.tif")
+refraster <- raster(extent(rawde14), crs = rawde14@crs,
+                    res = c(250, 250))
+refpix <- SpatialGridDataFrame(refraster)
+
+### CALCULATE EACH INDIV HOME RANGE ###
+
+xy <- data.frame("x" = locs$Long, "y" = locs$Lat)
+ll <- SpatialPointsDataFrame(xy, locs, proj4string = latlong)
+stpln <- spTransform(ll, stateplane)
+kud <- kernelUD(stpln[,7]) #create kde for each indiv (7=IndivYr)
+## kristin- may need to specify grid here, use refraster
+## would prob have to convert to spatial pixels df
+
+## determine UD in each pixel per home range
+
+opar <- par(mfrow = c(2, 2), mar = c(0, 0, 2, 0))
+for (i in 1:length(kud)) {
+  image(kud[[i]], main = names(kud)[i], axes = FALSE)
+  box()
+  polygon(cont[, 2:3]) ## and instead of this use raster cells
+}
+par(opar)

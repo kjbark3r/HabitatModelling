@@ -292,11 +292,18 @@ pp <- ggplot(ruf, aes(nLocs)) +
 pexc <- stat_smooth(aes(y = nExc/nIndiv, colour = "nExc"),
                     data = subset(ruf, HabSuit == "Excellent"),
                     method = "glm",  
-                    formula = y ~ poly(x, 2, raw = TRUE))
+                    formula = y ~ poly(x, 3, raw = TRUE))
 pgd <- stat_smooth(aes(y = nGood/nIndiv, colour = "nGood"),
                     data = subset(ruf, HabSuit == "Good"),
                     method = "glm",  
+                    formula = y ~ poly(x, 3, raw = TRUE))
+pmgd <- stat_smooth(aes(y = nMarg/nIndiv, colour = "nMarg"),
+                    data = subset(ruf, HabSuit == "Marginal"),
+                    method = "glm",  
                     formula = y ~ poly(x, 2, raw = TRUE))
+pp + pexc + pgd
+pp + pexc + pgd + pmgd
+
 
 # adequate #
 pad <-   stat_smooth(aes(y = nAd/nIndiv, colour = "nAd"),
@@ -308,7 +315,7 @@ pinad <-   stat_smooth(aes(y = nAd/nIndiv, colour = "nInd"),
                     method = "glm",  
                     formula = y ~ poly(x, 2, raw = TRUE))
 
-
+pp + pad + pmgd
 
 #### VISUALS - PREDICTED PLOTS ####
 

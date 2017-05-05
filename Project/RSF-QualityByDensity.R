@@ -106,64 +106,48 @@ ua14dat <- bind_cols(ua14, ext14) %>%
   rename(nLocs = nlocs14,
          DE = DE2014) %>%
   mutate(Year = 2014)
-
-
 ua15dat <- bind_cols(ua15, ext15) %>%
   rename(nLocs = nlocs15,
          DE = DE2015) %>%
   mutate(Year = 2015)
-
 uadat <- bind_rows(ua14dat, ua15dat)
 any(is.na(uadat)) # sweet
 uadat$HabSuit <- ifelse(uadat$DE >= 2.9, "Excellent",
                  ifelse(uadat$DE < 2.9 & uadat$DE >= 2.75, "Good",
                  ifelse(uadat$DE < 2.75 & uadat$DE >= 2.4, "Marginal",
                         "Poor")))
+uadat$Adequate <- as.factor(ifelse(uadat$DE >= 2.75, 1, 0))
+
+write.csv(uadat, file = "rsf-data.csv")
 
 
-#### RSF TIME, FINALLY ####
+#### RSF - DOES SELXN FOR HAB QUAL CHANGE AT DIFF DENSITIES? ####
 
-# excellent #
-exc1 <- glm(Used ~ nLocs, family = binomial(logit),
-           data = uadat, subset = HabSuit == "Excellent")
-exc2 <- glm(Used ~ nLocs + I(nLocs^2), family = binomial(logit),
-           data = uadat, subset = HabSuit == "Excellent")
-exc3 <- glm(Used ~ nLocs + I(nLocs^2) + I(nLocs^3), family = binomial(logit),
-           data = uadat, subset = HabSuit == "Excellent")
-BIC(exc1, exc2, exc3)
+uadat <- read.csv("rsf-data.csv")
+uadat$Adequate <- as.factor(uadat$Adequate)
 
+m1 <- glm(Used ~ DE, data = uadat, family = binomial(logit))
+m2 <- glm(Used ~ DE*nLocs, data = uadat, family = binomial(logit))
+AIC(m1, m2)
 
-# good #
-gd1 <- glm(Used ~ nLocs, family = binomial(logit),
-           data = uadat, subset = HabSuit == "Good")
-gd2 <- glm(Used ~ nLocs + I(nLocs^2), family = binomial(logit),
-           data = uadat, subset = HabSuit == "Good")
-gd3 <- glm(Used ~ nLocs + I(nLocs^2) + I(nLocs^3), family = binomial(logit),
-           data = uadat, subset = HabSuit == "Good")
-BIC(gd1, gd2, gd3)
+m3 <- glm(Used ~ Adequate, data = uadat, family = binomial(logit))
+m4 <- glm(Used ~ Adequate*nLocs, data = uadat, family = binomial(logit))
+AIC(m3, m4)
 
+exp(coef(m4))
 
-# marginal #
-mg1 <- glm(Used ~ nLocs, family = binomial(logit),
-           data = uadat, subset = HabSuit == "Marginal")
-mg2 <- glm(Used ~ nLocs + I(nLocs^2), family = binomial(logit),
-           data = uadat, subset = HabSuit == "Marginal")
-mg3 <- glm(Used ~ nLocs + I(nLocs^2) + I(nLocs^3), family = binomial(logit),
-           data = uadat, subset = HabSuit == "Marginal")
-BIC(mg1, mg2, mg3)
+ggplot(uadat, aes(x=nLocs, 
+                     y=Used, linetype=HabSuit)) + 
+  stat_smooth(method="glm", 
+              method.args = list(family="binomial"), 
+              level=0.95) 
 
 
-#### ADD PREDICTIONS FROM TOP MODELS TO DATA ####
-
-testexc <- filter(uadat, HabSuit == "Excellent")
-testexc$Fitted <- fitted(exc3)
-plot(testexc$nLocs, testexc$Fitted)
-
-testgd <- filter(uadat, HabSuit == "Good")
-testgd$Fitted <- fitted(gd3)
-plot(testgd$nLocs, testgd$Fitted)
-
-
-testmg <- filter(uadat, HabSuit == "Marginal")
-testmg$Fitted <- fitted(mg3)
-plot(testmg$nLocs, testmg$Fitted)
+plothum <- ggplot(wolfdata2, aes(x=DistFromHumanAccess2, 
+                     y=used, linetype=closedFactor)) + 
+  labs(x = "Distance From Humans (m)", y = "Pr(Use)") +
+  theme(legend.title = element_blank()) +
+  scale_color_hue(labels = c("Open canopy", "Closed canopy")) +
+  stat_smooth(method="glm", 
+              method.args = list(family="binomial"), 
+              level=0.95) 
