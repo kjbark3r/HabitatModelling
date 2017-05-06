@@ -186,6 +186,8 @@ long15$IndivYr <- gsub("e", "", long15$IndivYr)
 rufdat <- rbind(long14, long15)
 write.csv(rufdat, file = "ruf-indiv.csv")
 
+rufdat <- read.csv("ruf-indiv.csv")
+
 rufdat$HabAd <- as.factor(rufdat$HabAd)
 
 
@@ -279,6 +281,24 @@ ni3 <- glm.nb(nIndPix ~ offset(log(nIndTot)) + nElkPix + I(nElkPix^2)+ I(nElkPix
 AIC(ni1, ni2, ni3)
 
 
+#### excellent ####
+exc <- rufdat %>%
+  mutate(RelFreq = nIndPix/nIndTot) %>%
+  filter(nIndPix > 0 & HabSuit == "Excellent") 
+
+
+ne <- glm.nb(nIndPix ~ offset(log(nIndTot)) + nElkPix, 
+         link = log, data = exc) 
+summary(ne)
+
+ne1 <- glm.nb(nIndPix ~ offset(log(nIndTot)) + nElkPix, 
+         link = log, data = exc) 
+ne2 <- glm.nb(nIndPix ~ offset(log(nIndTot)) + nElkPix + I(nElkPix^2), 
+         link = log, data = exc) 
+ne3 <- glm.nb(nIndPix ~ offset(log(nIndTot)) + nElkPix + I(nElkPix^2)+ I(nElkPix^3), 
+         link = log, data = exc) 
+AIC(ne1, ne2, ne3)
+
 
 #### plotting ####
 
@@ -310,3 +330,17 @@ plot(inad$nElkPix, inad$RelFreq,
                             m^2, ")", sep="")))
 lines(dens, predi, type = "l")
 
+
+
+# excellent #
+dens <- 0:max(exc$nElkPix)
+predi <- predict(ne3, 
+                newdata = data.frame(nElkPix = dens, nIndTot = 1), 
+                type = "response")
+par(mfrow=c(1,1))
+plot(exc$nElkPix, exc$RelFreq,
+     main = "Excellent Baseline Suitability",
+     ylab = "Relative frequency of use",
+     xlab = expression(paste("Conspecific Density (n/250",
+                            m^2, ")", sep="")))
+lines(dens, predi, type = "l")

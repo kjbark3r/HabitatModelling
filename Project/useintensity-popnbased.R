@@ -71,27 +71,27 @@ pt + stat_smooth(method="glm",
 # define 5 model types to assess #
 
     # poisson
-    mp <- glm(nLocs ~ GDM,
+    mp <- glm(nLocs ~ GDM + I(GDM^2) + I(GDM^3),
                 family = poisson, data = uidat)
-    summary(mp)
+    summary(mp) # retains 3
     
     # quasipoisson
-    mqp <- glm(nLocs ~ GDM,
+    mqp <- glm(nLocs ~ GDM + I(GDM^2) + I(GDM^3),
                 family = quasipoisson, data = uidat)
-    summary(mqp)
+    summary(mqp) # retains 3
     
     # zero-truncated poisson
-    mzp <- vglm(nLocs ~ GDM,
+    mzp <- vglm(nLocs ~ GDM + I(GDM^2) + I(GDM^3),
                 family = pospoisson(), data = uidat)
     summary(mzp)
     
     # negative binomial
-    mnb <- glm.nb(nLocs ~ GDM,
+    mnb <- glm.nb(nLocs ~ GDM + I(GDM^2) + I(GDM^3),
                 data = uidat, link = log)
-    summary(mnb)
+    summary(mnb) # retains 3
     
     # zero-truncated negative binomial
-    mznb <- vglm(nLocs ~ GDM,
+    mznb <- vglm(nLocs ~ GDM + I(GDM^2) + I(GDM^3),
                 data = uidat, 
                 family = posnegbinomial())
     summary(mznb)
@@ -106,56 +106,75 @@ pt + stat_smooth(method="glm",
     # of variance = mean + some constant*a function of the mean
     # alpha = overdispersion parameter
 
-## relative support for zero-truncated poisson or negbin ##
-AIC(mzp)
-AIC(mnb)
-# zero-truncated poisson
-# but i'm nervous about the overdispersion
+## test square/cubic covariate significance in negbin
+    drop1(mnb, test = "LRT")
 
 
+#### model fit: variance-mean relationship ####
     
-## chi-sq tests of relative likelihoods ##
-    
-    # negative binomial > poisson?
-    pchisq(2 * (logLik(mnb) - logLik(mp)), df = 1, lower.tail = FALSE)
-      # yes, negbin better
-    
-    # zero-truncated poisson > poisson?
-    pchisq(2 * (logLik(mzp) - logLik(mp)), df = 1, lower.tail = FALSE)
-      # yes, zero-truncated better
-    
-    # zero-truncated poisson > negative binomial?
-    pchisq(2 * (logLik(mzp) - logLik(mnb)), df = 1, lower.tail = FALSE)
-      # yes, shit
-    
-    # zero-truncated poisson > zero-truncated negative binomial?
-    pchisq(2 * (logLik(mzp) - logLik(mznb)), df = 1, lower.tail = FALSE)
-      # no? i don't get what it means when it says 1 
-    pchisq(2 * (logLik(mznb) - logLik(mzp)), df = 1, lower.tail = FALSE)
-    
-    # quasipoisson > negative binomial?
-    pchisq(2 * (logLik(mqp) - logLik(mnb)), df = 1, lower.tail = FALSE)
-      # can't do this bc quasipoisson doesn't have a likelihood, ugh
+## kristin you stole most of this from the insanely helpful
+## http://www.ssc.wisc.edu/sscc/pubs/RFR/RFR_RegressionGLM.html
+
+# create df with model results (residuals, fitted vals, etc)
+mnbDiag <- data.frame(uidat,
+                     link=predict(mnb, type="link"),
+                     fit=predict(mnb, type="response"),
+                     pearson=residuals(mnb,type="pearson"),
+                     resid=residuals(mnb,type="response"),
+                     residSqr=residuals(mnb,type="response")^2
+                     )
+
+# visually compare how well negbin and quasipoisson
+  # fit expected residual-mean relationship
+# idea is you want model line closest to means of loess line
+ggplot(data=mnbDiag, aes(x=fit, y=residSqr)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) + # poisson, black
+  geom_abline(intercept = 0, slope = summary(mqp)$dispersion,
+              color="green") + # quasipoisson
+  stat_function(fun=function(fit){fit + fit^2/mnb$theta},
+                color = "red") + #negbin
+  stat_smooth(method="loess", se = FALSE) #loess, blue
+# negbin ftw
 
 
+# remove those 2 annoying outlier ag pivots & re-plot
+    # just for better visual of lines on plot
+    # actual relationship/inference doesn't change
+mnbDiag1 <- filter(mnbDiag, resid < 20) 
+
+# pretty report plot
+ggplot(data=mnbDiag1, aes(x=fit, y=residSqr)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) + # poisson, black
+  geom_abline(intercept = 0, slope = summary(mqp)$dispersion,
+              color="green") + # quasipoisson
+  stat_function(fun=function(fit){fit + fit^2/mnb$theta},
+                color = "red") + #negbin
+  stat_smooth(method="loess", se = FALSE) + #loess, blue
+  labs(x = "Fitted values", y = "Squared residuals")
     
 
 
-        
-## just playing with the zero-truncated poisson for now
-    mzp1 <- vglm(nLocs ~ GDM,
-                family = pospoisson(), data = uidat)
-    mzp2 <- vglm(nLocs ~ GDM + I(GDM^2),
-                family = pospoisson(), data = uidat)
-    mzp3 <- vglm(nLocs ~ GDM + I(GDM^2) + I(GDM^3),
-                family = pospoisson(), data = uidat)
-    AIC(mzp1); AIC(mzp2); AIC(mzp3)
-    BIC(mzp1); BIC(mzp2); BIC(mzp3)
-      # cubic ftw as usual
-    
-    
- 
-    
+#### RELATIONSHIP PLOT FROM TOP MODEL ####
+
+mplot <- ggplot(mnbDiag, aes(x = GDM, y = nLocs)) +
+  labs(y=expression(paste("Elk use (# individuals)", sep="")), 
+       x="Available nutrition (GDM)") +
+  geom_point() +
+  geom_line(aes(x = mnbDiag$GDM, y = mnbDiag$fit))
+mplot
+
+pt + stat_smooth()
+pt + stat_smooth(method="glm", 
+                 formula = y ~ poly(x, 3, raw = TRUE))
+
+plot(inad$nElkPix, inad$RelFreq,
+     main = "Inadequate Baseline Suitability",
+     ylab = "Relative frequency of use",
+     xlab = expression(paste("Conspecific Density (n/250",
+                            m^2, ")", sep="")))
+lines(dens, predi, type = "l")    
 
 #### PER CAPITA NUTRITION BY MIGSTATUS ####
     
