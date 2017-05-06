@@ -190,7 +190,21 @@ AIC(mnb)
     t <- TukeyHSD(aov(GDMpc ~ MigStatus, data = vdf))
     t
            
-## ## ## ## ## ## ###
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    ## ## ## ## ## ## ###
 ## CUTS AND MISC ####
 ## ## ## ## ## ## ###
     

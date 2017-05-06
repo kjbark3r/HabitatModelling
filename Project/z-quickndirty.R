@@ -876,3 +876,101 @@ for (i in 1:length(kud)) {
   polygon(cont[, 2:3]) ## and instead of this use raster cells
 }
 par(opar)
+
+
+#### having trouble with correctly specified models (nlocs per pixel per indiv) ####
+#### CREATE MODELS, HOPEFULLY ####
+rufdat <- read.csv("ruf-indiv.csv")
+
+rufdat$HabAd <- as.factor(rufdat$HabAd)
+
+
+mep1 <- glm(nIndPix ~ offset(log(nIndTot)) + nElkPix, 
+           family = poisson, data= rufdat,
+             subset = HabSuit=="Excellent"  & nIndPix > 0)
+menb1 <- glm.nb(nIndPix ~ offset(log(nIndTot)) + nElkPix, 
+           link = log, data= rufdat,
+             subset = HabSuit=="Excellent" & nIndPix > 0)
+meqp1 <- glm(nIndPix ~ offset(log(nIndTot)) + nElkPix, 
+           family = quasipoisson, data= rufdat,
+             subset = HabSuit=="Excellent"  & nIndPix > 0)
+
+summary(mep1)
+summary(menb1)
+summary(meqp1)
+ par(mfrow=c(2,2))
+  plot(mep1)
+  plot(menb1)
+  plot(meqp1)
+
+test <- filter(rufdat, nIndPix > 0)  
+hist(test$nIndPix)
+
+mint <- glm(nIndPix ~ offset(log(nIndTot)) + HabAd*I(nElkPix-1) , 
+           family = poisson, data= rufdat,
+             subset = nIndPix > 0)
+summary(mint)
+
+# visual relationship
+ggplot(rufdat, aes(x = nElkPix, y = nIndPix/nIndTot,
+                   colour = HabSuit)) +
+  #geom_point() +
+  geom_smooth(method="loess")
+
+library(lme4)
+mm <- glmer(nIndPix ~ offset(log(nIndTot)) + HabAd*nElkPix + (1|IndivYr),
+            family = poisson, data = rufdat, subset = nIndPix > 0)
+summary(mm)
+
+
+madp1 <- glm(nIndPix ~ offset(log(nIndTot)) + nElkPix, 
+           family = quasipoisson, data= rufdat,
+             subset = HabAd == 1)
+madnb1 <- glm.nb(nIndPix ~ offset(log(nIndTot)) + nElkPix, 
+           link = log, data= rufdat,
+             subset = HabAd == 1)
+summary(madp1)
+summary(madnb1)
+plot(madp1)
+plot(madnb1)
+
+#### TOP MODEL PLOTS ####
+
+pp <- ggplot(rufdat, aes(nElkPix)) +
+    labs(x=expression(paste("Conspecific Density (n/250",
+                            m^2, ")", sep="")), 
+       y="Relative frequency of use",
+       colour = "Habitat Type") 
+pexc <- stat_smooth(aes(y = nIndPix/nIndTot, colour = "nExc"),
+                    data = subset(rufdat, HabSuit == "Excellent"),
+                    method = "gam",  
+                    formula = y ~ poly(x, 3, raw = TRUE)) +
+  geom_point()
+pp+pexc
+
+excdat <- filter(rufdat, HabSuit == "Excellent" & nIndPix > 0) %>%
+  mutate(IndFreq = nIndPix/nIndTot)
+ugh <- ggplot(excdat, aes(x = nElkPix, y = nIndPix/nIndTot))
+ptest <- stat_smooth() +
+  geom_point()
+ugh+ptest
+plot(excdat$IndFreq ~ excdat$nElkPix)
+
+
+#### NEWPS - more correct indiv-based ruf ####
+
+# quasipoisson
+qp <- glm(nIndPix ~ log(nIndTot) + nElkPix, 
+         family = quasipoisson, data = ad) 
+plot(qp)
+summary(qp)
+
+# poisson with random indiv intercept
+pi <- glmer(nIndPix ~ log(nIndTot) + nElkPix + (1|IndivYr), 
+         family = poisson, data = ad, verbose = TRUE)
+summary(pi)
+
+# poisson with random indiv beta)
+pb <- glmer(nIndPix ~ log(nIndTot) + (nElkPix|IndivYr), 
+         family = poisson, data = ad, verbose = TRUE)
+summary(pb)
