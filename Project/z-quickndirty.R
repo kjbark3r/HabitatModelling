@@ -974,3 +974,51 @@ summary(pi)
 pb <- glmer(nIndPix ~ log(nIndTot) + (nElkPix|IndivYr), 
          family = poisson, data = ad, verbose = TRUE)
 summary(pb)
+
+
+
+#### OLDER POPN-BASED MODEL SELECTION ATTEMPTS ####
+
+    
+## chi-sq tests of relative likelihoods ##
+    
+    # negative binomial > poisson?
+    pchisq(2 * (logLik(mnb) - logLik(mp)), df = 1, lower.tail = FALSE)
+      # yes, negbin better
+    
+    # zero-truncated poisson > poisson?
+    pchisq(2 * (logLik(mzp) - logLik(mp)), df = 1, lower.tail = FALSE)
+      # yes, zero-truncated better
+    
+    # zero-truncated poisson > negative binomial?
+    pchisq(2 * (logLik(mzp) - logLik(mnb)), df = 1, lower.tail = FALSE)
+      # yes, shit
+    
+    # zero-truncated poisson > zero-truncated negative binomial?
+    pchisq(2 * (logLik(mzp) - logLik(mznb)), df = 1, lower.tail = FALSE)
+      # no? i don't get what it means when it says 1 
+    pchisq(2 * (logLik(mznb) - logLik(mzp)), df = 1, lower.tail = FALSE)
+    
+    # quasipoisson > negative binomial?
+    pchisq(2 * (logLik(mqp) - logLik(mnb)), df = 1, lower.tail = FALSE)
+      # can't do this bc quasipoisson doesn't have a likelihood, ugh
+
+
+	  
+###        
+## just playing with the zero-truncated poisson for now
+    mzp1 <- vglm(nLocs ~ GDM,
+                family = pospoisson(), data = uidat)
+    mzp2 <- vglm(nLocs ~ GDM + I(GDM^2),
+                family = pospoisson(), data = uidat)
+    mzp3 <- vglm(nLocs ~ GDM + I(GDM^2) + I(GDM^3),
+                family = pospoisson(), data = uidat)
+    AIC(mzp1); AIC(mzp2); AIC(mzp3)
+    BIC(mzp1); BIC(mzp2); BIC(mzp3)
+      # cubic ftw as usual
+	  
+	  ## relative support for zero-truncated poisson or negbin ##
+AIC(mzp)
+AIC(mnb)
+# zero-truncated poisson
+# but i'm nervous about the overdispersion
