@@ -159,7 +159,8 @@ ggplot(data=mnbDiag1, aes(x=fit, y=residSqr)) +
 #### RELATIONSHIP PLOT FROM TOP MODEL ####
 
 mplot <- ggplot(mnbDiag, aes(x = GDM, y = nLocs)) +
-  labs(y=expression(paste("Elk use (# individuals)", sep="")), 
+  labs(y=expression(paste("Elk density (# individuals/250 ", 
+                          m^2, ")", sep="")), 
        x="Available nutrition (GDM)") +
   geom_point() +
   geom_line(aes(x = mnbDiag$GDM, y = mnbDiag$fit))

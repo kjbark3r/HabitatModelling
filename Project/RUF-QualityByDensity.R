@@ -318,7 +318,7 @@ plot(adnew$nElkPix, adnew$RelFreq,
 lines(dens, pred, type = "l")
 
 # inadequate #
-dens <- 0:max(inad$nElkPix)
+densi <- 0:max(inad$nElkPix)
 predi <- predict(ni3, 
                 newdata = data.frame(nElkPix = dens, nIndTot = 1), 
                 type = "response")
@@ -344,3 +344,67 @@ plot(exc$nElkPix, exc$RelFreq,
      xlab = expression(paste("Conspecific Density (n/250",
                             m^2, ")", sep="")))
 lines(dens, predi, type = "l")
+# looks same, sticking with ad/inad
+
+
+
+# ad and inad in same fig, for rpt
+
+par(mfrow=c(2,1))
+
+dens <- 0:70
+pred <- predict(n3, 
+                newdata = data.frame(nElkPix = dens, nIndTot = 1), 
+                type = "response")
+plot(adnew$nElkPix, adnew$RelFreq,
+     main = "Adequate Baseline Suitability",
+     ylab = "Relative frequency of use",
+     xlab = expression(paste("Conspecific Density (n/250",
+                            m^2, ")", sep="")))
+lines(dens, pred, type = "l")
+
+densi <- 0:max(inad$nElkPix)
+predi <- predict(ni3, 
+                newdata = data.frame(nElkPix = dens, nIndTot = 1), 
+                type = "response")
+plot(inad$nElkPix, inad$RelFreq,
+     main = "Inadequate Baseline Suitability",
+     ylab = "Relative frequency of use",
+     xlab = expression(paste("Conspecific Density (n/250",
+                            m^2, ")", sep="")))
+lines(dens, predi, type = "l")
+
+colnames(adnew); colnames(inad)
+test <- rbind(adnew, inad) %>%
+  mutate(Base = ifelse(HabAd == 1, "Adequate", "Inadequate"))
+
+a <- ggplot(test, aes(x = nElkPix, y = RelFreq)) +
+  labs(x = expression(paste("Conspecific Density (n/250",
+                            m^2, ")", sep="")),
+       y = "Relative frequency of use",
+       colour = "Base") 
+b <- geom_point(aes(colour = "Adequate"),
+                data = subset(test, Base == "Adequate"))
+c <- geom_point(aes(colour = "Indequate"),
+                data = subset(test, Base == "Inadequate"))
+
+
+d <- geom_line(aes(y = test$pred))
+
+a+b+c
+a+b+c+d
+a+b+c+d+e
+
+wtf <- subset(test, Base == "Inadequate")
+View(wtf)
+# fuck it
+
+
+#### summary info for rpt ####
+summary(adnew$nElkPix)
+summary(inad$nElkPix)
+nrow(adnew); nrow(inad)
+summary(test$nElkPix)
+hist(test$nElkPix)
+data.frame(table(test$nElkPix))
+nrow(test)
