@@ -1022,3 +1022,61 @@ AIC(mzp)
 AIC(mnb)
 # zero-truncated poisson
 # but i'm nervous about the overdispersion
+
+
+#### failed ggplot ####
+
+a <- ggplot(test, aes(x = nElkPix, y = RelFreq)) +
+  labs(x = expression(paste("Conspecific Density (n/250",
+                            m^2, ")", sep="")),
+       y = "Relative frequency of use",
+       colour = "Base") 
+b <- geom_point(aes(colour = "Adequate"),
+                data = subset(test, Base == "Adequate"))
+c <- geom_point(aes(colour = "Indequate"),
+                data = subset(test, Base == "Inadequate"))
+
+
+d <- geom_line(aes(y = test$pred))
+
+a+b+c
+a+b+c+d
+a+b+c+d+e
+
+wtf <- subset(test, Base == "Inadequate")
+View(wtf)
+# fuck it
+
+
+
+#### figuring out where suitability = in both habs ####
+
+dens <- 0:max(adnew$nElkPix)
+pred <- predict(n3, 
+                newdata = data.frame(nElkPix = dens, nIndTot = 1), 
+                type = "response")
+plot(adnew$nElkPix, adnew$RelFreq,
+     main = "High Quality Habitat",
+     ylab = "Use-intensity",
+     xlab = expression(paste("Conspecific Density (n/250",
+                            m^2, ")", sep="")),
+     ylim = c(0, 0.15),
+     xlim = c(10, 40),
+     cex = 0.4)
+lines(dens, pred, type = "l")
+
+densi <- 0:max(inad$nElkPix)
+predi <- predict(ni3, 
+                newdata = data.frame(nElkPix = dens, nIndTot = 1), 
+                type = "response")
+plot(inad$nElkPix, inad$RelFreq,
+     main = "Low Quality Habitat",
+     ylab = "Use-intensity",
+     xlab = expression(paste("Conspecific Density (n/250",
+                            m^2, ")", sep="")),
+     ylim = c(0, 0.15),
+     xlim = c(10, 40),
+     cex = 0.4)
+lines(dens, predi, type = "l")
+
+hm <- data.frame(Good = pred, Bad = predi)

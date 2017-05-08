@@ -58,19 +58,17 @@ locs$IndivYr <- ifelse(locs$Date < "2015-01-01",
                        paste(locs$AnimalID, "-14", sep=""),
                        paste(locs$AnimalID, "-15", sep=""))  
 locs <- left_join(locs, mig, by = "IndivYr")
-locs <- locs[!is.na(locs["MigStatus"]),]
+locs <- locs[!is.na(locs["MigStatus"]),] # remove ski hill weirdos
 
 
-## rm non-foraging times; subset 1 rndm loc/day; spatialize ##
+## rm non-foraging times; subset 5 rndm loc/day; spatialize ##
 
 l14 <- locs %>%
   filter(Sex == "Female") %>%
   subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31"))) %>%
-  #subset(Time < 0300 | Time > 2300) %>%
   subset(Time < 1400 | Time > 1800) %>%
   group_by(IndivYr, Date) %>%
   sample_n(5) %>%
-  #sample_n(1) %>%
   ungroup() %>%
   group_by(IndivYr) %>%
   mutate(tIndiv = n()) %>%
@@ -81,12 +79,10 @@ l14 <- locs %>%
 l15 <- locs %>%
   filter(Sex == "Female") %>%
   subset(between(Date, as.Date("2015-07-15"), as.Date("2015-08-31"))) %>%
-  #subset(Time < 0300 | Time > 2300) %>%
   subset(Time < 1400 | Time > 1800) %>%
   group_by(IndivYr, Date) %>%
   filter(n() >= 5) %>%
   sample_n(5) %>%
-  #sample_n(1) %>%
   ungroup() %>%
   group_by(IndivYr) %>%
   mutate(tIndiv = n()) %>%
@@ -300,7 +296,7 @@ ne3 <- glm.nb(nIndPix ~ offset(log(nIndTot)) + nElkPix + I(nElkPix^2)+ I(nElkPix
 AIC(ne1, ne2, ne3)
 
 
-#### plotting ####
+#### PLOTS ####
 
 # adequate #
 dens <- 0:70
@@ -311,8 +307,8 @@ adnew <- ad %>%
   mutate(RelFreq = nIndPix/nIndTot)
 par(mfrow=c(1,1))
 plot(adnew$nElkPix, adnew$RelFreq,
-     main = "Adequate Baseline Suitability",
-     ylab = "Relative frequency of use",
+     main = "High Quality Habitat",
+     ylab = "Use-intensity",
      xlab = expression(paste("Conspecific Density (n/250",
                             m^2, ")", sep="")))
 lines(dens, pred, type = "l")
@@ -324,8 +320,8 @@ predi <- predict(ni3,
                 type = "response")
 par(mfrow=c(1,1))
 plot(inad$nElkPix, inad$RelFreq,
-     main = "Inadequate Baseline Suitability",
-     ylab = "Relative frequency of use",
+     main = "Low Quality Habitat",
+     ylab = "Use-intensity",
      xlab = expression(paste("Conspecific Density (n/250",
                             m^2, ")", sep="")))
 lines(dens, predi, type = "l")
@@ -350,61 +346,87 @@ lines(dens, predi, type = "l")
 
 # ad and inad in same fig, for rpt
 
-par(mfrow=c(2,1))
+par(mfrow=c(1,2))
 
-dens <- 0:70
+dens <- 0:max(adnew$nElkPix)
 pred <- predict(n3, 
                 newdata = data.frame(nElkPix = dens, nIndTot = 1), 
                 type = "response")
 plot(adnew$nElkPix, adnew$RelFreq,
-     main = "Adequate Baseline Suitability",
-     ylab = "Relative frequency of use",
+     main = "High Quality Habitat",
+     ylab = "Use-intensity",
      xlab = expression(paste("Conspecific Density (n/250",
-                            m^2, ")", sep="")))
+                            m^2, ")", sep="")),
+     ylim = c(0, 0.15),
+     xlim = c(0, 70),
+     cex = 0.4)
 lines(dens, pred, type = "l")
 
 densi <- 0:max(inad$nElkPix)
 predi <- predict(ni3, 
-                newdata = data.frame(nElkPix = dens, nIndTot = 1), 
+                newdata = data.frame(nElkPix = densi, nIndTot = 1), 
                 type = "response")
 plot(inad$nElkPix, inad$RelFreq,
-     main = "Inadequate Baseline Suitability",
-     ylab = "Relative frequency of use",
+     main = "Low Quality Habitat",
+     ylab = "Use-intensity",
      xlab = expression(paste("Conspecific Density (n/250",
-                            m^2, ")", sep="")))
-lines(dens, predi, type = "l")
+                            m^2, ")", sep="")),
+     ylim = c(0, 0.15),
+     xlim = c(0, 70),
+     cex = 0.4)
+lines(densi, predi, type = "l")
 
+
+#### misc info for rpt ####
 colnames(adnew); colnames(inad)
 test <- rbind(adnew, inad) %>%
   mutate(Base = ifelse(HabAd == 1, "Adequate", "Inadequate"))
-
-a <- ggplot(test, aes(x = nElkPix, y = RelFreq)) +
-  labs(x = expression(paste("Conspecific Density (n/250",
-                            m^2, ")", sep="")),
-       y = "Relative frequency of use",
-       colour = "Base") 
-b <- geom_point(aes(colour = "Adequate"),
-                data = subset(test, Base == "Adequate"))
-c <- geom_point(aes(colour = "Indequate"),
-                data = subset(test, Base == "Inadequate"))
-
-
-d <- geom_line(aes(y = test$pred))
-
-a+b+c
-a+b+c+d
-a+b+c+d+e
-
-wtf <- subset(test, Base == "Inadequate")
-View(wtf)
-# fuck it
-
-
-#### summary info for rpt ####
 summary(adnew$nElkPix)
 summary(inad$nElkPix)
 nrow(adnew); nrow(inad)
+nrow(adnew)/sum(nrow(adnew)+nrow(inad))
 summary(test$nElkPix)
 hist(test$nElkPix)
 data.frame(table(test$nElkPix))
 nrow(test)
+length(which(inad$nElkPix < 30))
+length(which(inad$nElkPix < 30))/nrow(inad)
+length(which(adnew$nElkPix < 30))/nrow(adnew)
+length(which(inad$nElkPix < 20))/nrow(inad)
+length(which(adnew$nElkPix < 20))/nrow(adnew)
+length(which(adnew$nElkPix > 30))
+
+length(which(test$nIndPix == 1))/nrow(test)
+length(which(test$nElkPix == 1))/nrow(test)
+length(which(test$nElkPix <= 3))/nrow(test)
+
+length(which(test$nIndPix <= 3))/nrow(test)
+length(which(test$nIndPix < 3))/nrow(test)
+m <- data.frame(table(test$nElkPix))
+n <- data.frame(table(test$nIndPix))
+o <- full_join(m, n, by = "Var1") %>%
+  rename(n = Var1,
+         Conspecifics = Freq.x,
+         Individual = Freq.y)
+View(o)
+hist(o$Conspecifics); hist(o$Individual)
+scatter.smooth(o$Conspecifics ~ o$n, na.rm=T)
+scatter.smooth(o$Individual ~ o$n, add=T)
+
+scatter.smooth(o$Conspecifics ~ o$n, 
+               ylim=c(0,100),
+               xlim=c(20,30))
+# inflection point looks to be around 22ish
+
+length(which(test$nElkPix < 20))/nrow(test)
+length(which(adnew$nElkPix < 20))/nrow(adnew)
+length(which(inad$nElkPix < 20))/nrow(inad)
+
+length(which(test$nElkPix < 10))/nrow(test)
+length(which(adnew$nElkPix < 10))/nrow(adnew)
+length(which(inad$nElkPix < 10))/nrow(inad)
+
+summary(adnew$nElkPix)
+summary(inad$nElkPix)
+t.test(log(adnew$nElkPix), log(inad$nElkPix),
+       alternative = "greater")
