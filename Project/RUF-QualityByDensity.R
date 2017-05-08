@@ -346,35 +346,35 @@ lines(dens, predi, type = "l")
 
 # ad and inad in same fig, for rpt
 
-par(mfrow=c(1,2))
-
 dens <- 0:max(adnew$nElkPix)
 pred <- predict(n3, 
                 newdata = data.frame(nElkPix = dens, nIndTot = 1), 
                 type = "response")
 plot(adnew$nElkPix, adnew$RelFreq,
-     main = "High Quality Habitat",
      ylab = "Use-intensity",
      xlab = expression(paste("Conspecific Density (n/250",
                             m^2, ")", sep="")),
      ylim = c(0, 0.15),
      xlim = c(0, 70),
-     cex = 0.4)
-lines(dens, pred, type = "l")
-
+     cex = 0.4,
+     col = "blue")
+lines(dens, pred, type = "l", col = "blue")
+par(new = TRUE)
 densi <- 0:max(inad$nElkPix)
 predi <- predict(ni3, 
                 newdata = data.frame(nElkPix = densi, nIndTot = 1), 
                 type = "response")
 plot(inad$nElkPix, inad$RelFreq,
-     main = "Low Quality Habitat",
      ylab = "Use-intensity",
      xlab = expression(paste("Conspecific Density (n/250",
                             m^2, ")", sep="")),
      ylim = c(0, 0.15),
      xlim = c(0, 70),
-     cex = 0.4)
-lines(densi, predi, type = "l")
+     cex = 0.4,
+     col = "red")
+lines(densi, predi, type = "l", col = "red")
+legend("topleft", c("High quality habitat", "Low quality habitat"),
+       lty = c(1,1), col = c("blue", "red"))
 
 
 #### misc info for rpt ####
@@ -429,4 +429,17 @@ length(which(inad$nElkPix < 10))/nrow(inad)
 summary(adnew$nElkPix)
 summary(inad$nElkPix)
 t.test(log(adnew$nElkPix), log(inad$nElkPix),
+       alternative = "greater")
+summary(test$DE)
+hist(test$DE)
+length(which(test$DE < 2.4))/nrow(test)
+
+a <- unique(inad$IndivYr)
+b <- unique(adnew$IndivYr)
+matches(a, b)
+
+summary(adnew$RelFreq)
+summary(inad$RelFreq)
+hist((adnew$RelFreq))
+t.test(adnew$RelFreq, inad$RelFreq,
        alternative = "greater")
