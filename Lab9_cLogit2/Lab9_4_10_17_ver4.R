@@ -537,8 +537,16 @@ summary(mean.full)
 time.full  <- clogit(used ~ timeNDVI + elevation + distha + disthha + I(landcover.cat) +strata(stratum), data = ssf_data)
 summary(time.full)
 
-#### You can now get predictions from a Clogit model, but the predictions mean something very different here
-#### The Cox model is a relative risk model; predictions of type "linear predictor", "risk", and "terms" are all relative to the sample from which they came. By default, the reference value for each of these is the mean covariate within strata. The primary underlying reason is statistical: a Cox model only predicts relative risks between pairs of subjects within the same strata, and hence the addition of a constant to any covariate, either overall or only within a particular stratum, has no effect on the fitted results. Using the reference="strata" option causes this to be true for predictions as well.
+#### You can now get predictions from a Clogit model, but the predictions 
+# mean something very different here
+#### The Cox model is a relative risk model; predictions of 
+# type "linear predictor", "risk", and "terms" are all relative to the sample 
+# from which they came. By default, the reference value for each of these is the
+# mean covariate within strata. The primary underlying reason is statistical: 
+# a Cox model only predicts relative risks between pairs of subjects within the 
+# same strata, and hence the addition of a constant to any covariate, either overall 
+# or only within a particular stratum, has no effect on the fitted results. Using 
+# the reference="strata" option causes this to be true for predictions as well.
 ssf_data$mean.full <- predict(mean.full, type="expected")
 ssf_data$time.full <- predict(time.full, type="expected")
 
